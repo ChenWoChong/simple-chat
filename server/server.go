@@ -2,12 +2,12 @@ package server
 
 import (
 	"context"
-	"fmt"
 	"github.com/ChenWoChong/simple-chat/config"
 	"github.com/ChenWoChong/simple-chat/message"
 	"github.com/golang/glog"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
+	_ "google.golang.org/grpc/encoding/gzip"
 	"io"
 	"net"
 )
@@ -106,7 +106,7 @@ func (s *Server) SendMessage(grpcMes message.Message_SendMessageServer) (err err
 				return err
 			}
 
-			fmt.Println(mes.Content)
+			glog.Info(logTag, mes.Content)
 			grpcMes.Send(&message.ResMes{Content: "Hello Client"})
 		}
 	}

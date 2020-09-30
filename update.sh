@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 
-docker network create --driver bridge ccloud
+docker stop server && docker rm server
+docker rmi -f server:latest
 
-# server
 make server_docker
 docker run --net ccloud -it -d --restart=always \
   --name server \
@@ -11,12 +11,12 @@ docker run --net ccloud -it -d --restart=always \
 #  -v /etc/localtime:/etc/localtime:ro \
 #  -v "${HOME}"/data/k8s/config/server/conf:/conf \
 
-# client
+docker stop client && docker rm client
+docker rmi -f client:latest
+
 make client_docker
 docker run --net ccloud -it -d --restart=always \
   --name client \
-  -p 12345:12345 \
   client:latest
-#  -v /etc/localtime:/etc/localtime:ro \
-#  -v "${HOME}"/data/k8s/config/client/conf:/conf \
+#  -p 12345:12345 \
 

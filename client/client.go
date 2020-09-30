@@ -93,7 +93,7 @@ func (c *Client) SendMessage(mes string) (err error) {
 
 	stream, err := c.rpcClient.SendMessage(ctx)
 	if err != nil {
-		glog.Errorf(logTag, "failed to call: %v", err)
+		glog.Errorf("failed to call: %v", err)
 		return
 	}
 
@@ -103,15 +103,15 @@ func (c *Client) SendMessage(mes string) (err error) {
 
 		stream.Send(&message.ReqMes{Content: mes})
 		if err != nil {
-			glog.Errorf(logTag, "failed to send: %v", err)
+			glog.Errorf("failed to send: %v", err)
 			break
 		}
 		reply, err := stream.Recv()
 		if err != nil {
-			glog.Errorf(logTag, "failed to recv: %v", err)
+			glog.Errorf("failed to recv: %v", err)
 			break
 		}
-		glog.Info(logTag, "Greeting: %s", reply.Content)
+		glog.Info(logTag, "Greeting: ", reply.Content)
 	}
 	return
 }

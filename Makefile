@@ -12,7 +12,7 @@ LDFLAGS="-X main.buildstamp=${BUILD_DATE} -X main.githash=${BUILD_HASH} -X main.
 
 DESTDIR=${PROJECT_PATH}/build
 
-TARGETS = server
+TARGETS = server client
 #DOCKER_TARGETS=$(foreach n,$(TARGETS),$(n)_docker)
 #DOCKER_PUSH=$(foreach n,$(TARGETS),$(n)_push)
 
@@ -63,7 +63,33 @@ server_docker: server
 	@cp -f ${PROJECT_PATH}/cmd/server/Dockerfile ${DESTDIR}/server-${VERSION}/
 
 	@chmod +x ${DESTDIR}/server-${VERSION}/docker-entrypoint.sh
-	cd ${DESTDIR}/server-${VERSION}/;docker build -t server:${VERSION} ./
+	cd ${DESTDIR}/server-${VERSION}/;docker build -t server:latest ./
+
+# ------------------------------------------------------------------------------------------------------------------------------
+
+client:
+	@echo "创建 client-${VERSION}目录"
+	@mkdir -p ${DESTDIR}/client-${VERSION}/conf
+	@mkdir -p ${DESTDIR}/client-${VERSION}/bin
+
+	@echo "拷贝配置文件"
+	@cp -rf ${PROJECT_PATH}/config/conf.dev.yml ${DESTDIR}/client-${VERSION}/conf/conf.yml
+
+	@echo "编译 client"
+	@env GOOS=linux GOARCH=amd64 go build -ldflags ${LDFLAGS} -o ${DESTDIR}/client-${VERSION}/bin/client ./cmd/client
+
+	@echo "打包文件 client-${VERSION}.tar.gz"
+	@cd ${DESTDIR}; tar -czf client-${VERSION}.tar.gz client-${VERSION}
+
+client_docker: client
+	@cp -f ${PROJECT_PATH}/cmd/client/.dockerignore ${DESTDIR}/client-${VERSION}/
+	@cp -f ${PROJECT_PATH}/cmd/client/docker-entrypoint.sh ${DESTDIR}/client-${VERSION}/
+	@cp -f ${PROJECT_PATH}/cmd/client/Dockerfile ${DESTDIR}/client-${VERSION}/
+
+	@chmod +x ${DESTDIR}/client-${VERSION}/docker-entrypoint.sh
+	@cd ${DESTDIR}/client-${VERSION}/;docker build -t client:latest ./
+
+
 
 clean:
 	rm -rf ${DESTDIR}
