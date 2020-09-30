@@ -20,8 +20,8 @@ const (
 type Client struct {
 	ctx context.Context
 
-	opt            *config.ClientRpcOpt
-	rpcEmailClient message.MessageClient
+	opt       *config.ClientRpcOpt
+	rpcClient message.MessageClient
 }
 
 func NewClient(ctx context.Context, opt *config.ClientRpcOpt) *Client {
@@ -29,6 +29,7 @@ func NewClient(ctx context.Context, opt *config.ClientRpcOpt) *Client {
 		opt: opt,
 		ctx: ctx,
 	}
+
 	if err := client.init(); err != nil {
 		glog.Errorln(logTag, err)
 		return nil
@@ -79,18 +80,18 @@ func (c *Client) init() error {
 
 	glog.Infoln(logTag, conn.GetState())
 
-	c.rpcEmailClient = message.NewMessageClient(conn)
+	c.rpcClient = message.NewMessageClient(conn)
 
 	return nil
 }
 
 /*************************************** call Server ***************************************/
 
-func (c *Client) SendMessage(mes *message.ResMes) (err error) {
+func (c *Client) SendMessage(mes string) (err error) {
 	ctx, cancel := context.WithTimeout(c.ctx, timeOut*30)
 	defer cancel()
 
-	stream, err := c.rpcEmailClient.SendMessage(ctx)
+	stream, err := c.rpcClient.SendMessage(ctx)
 	if err != nil {
 		glog.Errorf(logTag, "failed to call: %v", err)
 		return
@@ -100,7 +101,7 @@ func (c *Client) SendMessage(mes *message.ResMes) (err error) {
 
 		time.Sleep(2 * time.Second)
 
-		stream.Send(&message.ReqMes{Content: "haha"})
+		stream.Send(&message.ReqMes{Content: mes})
 		if err != nil {
 			glog.Errorf(logTag, "failed to send: %v", err)
 			break

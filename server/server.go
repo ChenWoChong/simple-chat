@@ -1,6 +1,7 @@
 package server
 
 import (
+	"context"
 	"fmt"
 	"github.com/ChenWoChong/simple-chat/config"
 	"github.com/ChenWoChong/simple-chat/message"
@@ -18,13 +19,15 @@ const (
 
 //Server real grpc service server
 type Server struct {
+	ctx context.Context
+
 	opt       *config.ServerRpcOpt
 	rpcServer *grpc.Server
 }
 
 //NewServer NewServer
-func NewServer(opt *config.ServerRpcOpt) *Server {
-	rpcServer := &Server{opt: opt}
+func NewServer(ctx context.Context, opt *config.ServerRpcOpt) *Server {
+	rpcServer := &Server{ctx: ctx, opt: opt}
 	if err := rpcServer.init(); err != nil {
 		glog.Fatal(logTag, err)
 	}
@@ -81,24 +84,31 @@ func (s *Server) Run() {
 //Stop grpc service
 func (s *Server) Stop() {
 	glog.Infoln(logTag, `grpc 服务退出`)
-	s.rpcServer.Stop()
+	s.rpcServer.GracefulStop()
 }
 
 /************************************** Function **************************************/
 
 func (s *Server) SendMessage(grpcMes message.Message_SendMessageServer) (err error) {
 	for {
-		mes, err := grpcMes.Recv()
-		if err == io.EOF {
-			return nil
-		}
-		if err != nil {
-			glog.Errorf("failed to recv: %v", err)
-			return err
-		}
+		select {
+		case <-s.ctx.Done():
+			glog.Info(logTag, `cancel server....`)
+			return
 
-		fmt.Println(mes.Content)
-		grpcMes.Send(&message.ResMes{Content: "Hello Client"})
+		default:
+			mes, err := grpcMes.Recv()
+			if err == io.EOF {
+				return nil
+			}
+			if err != nil {
+				glog.Errorf("failed to recv: %v", err)
+				return err
+			}
+
+			fmt.Println(mes.Content)
+			grpcMes.Send(&message.ResMes{Content: "Hello Client"})
+		}
 	}
 
 	return nil
