@@ -1,0 +1,16 @@
+syntax = "proto3";
+
+package message;
+option go_package = "message";
+
+service Message {
+    rpc SendMessage (stream ReqMes) returns (stream ResMes);
+}
+
+message ReqMes {
+    string content = 1;
+}
+
+message ResMes {
+    string content = 1;
+}

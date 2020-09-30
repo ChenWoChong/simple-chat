@@ -1,0 +1,16 @@
+Version: 0.0.0
+
+# server_rpc服务参数
+server_rpc_opt:
+  listen_addr: "127.0.0.1:12345" #业务口, rpc 连接端口
+  cert_file_path: ""
+  key_file_path: ""
+  is_tls: false  # 是否开启证书
+
+# client_rpc服务参数
+client_rpc_opt:
+  server_addr: "127.0.0.1:12345"    #server 连接的rpc服务
+  ca_file_path: ""
+  server_host_override: ""
+  is_tls: false  # 是否开启加密证书
+

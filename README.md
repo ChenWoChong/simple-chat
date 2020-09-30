@@ -1,2 +1,2 @@
 # simple-chat
-a simple chatrom basing on grpc
+a simple chat room that uses grpc to communicate
