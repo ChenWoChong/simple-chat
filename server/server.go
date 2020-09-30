@@ -2,14 +2,18 @@ package server
 
 import (
 	"context"
+	"fmt"
 	"github.com/ChenWoChong/simple-chat/config"
 	"github.com/ChenWoChong/simple-chat/message"
 	"github.com/golang/glog"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials"
 	_ "google.golang.org/grpc/encoding/gzip"
+	"google.golang.org/grpc/status"
 	"io"
 	"net"
+	"sync"
 )
 
 const (
@@ -19,10 +23,14 @@ const (
 
 //Server real grpc service server
 type Server struct {
-	ctx context.Context
+	ctx context.Context // 上下文
 
-	opt       *config.ServerRpcOpt
-	rpcServer *grpc.Server
+	opt       *config.ServerRpcOpt // grpc server 配置参数
+	rpcServer *grpc.Server         // grpc server
+
+	message.UnimplementedChatroomServer
+
+	sync.Map // 存储用户连接关系：map[senderID]Chatroom_ChatServer
 }
 
 //NewServer NewServer
@@ -69,7 +77,7 @@ func (s *Server) Serve() {
 	}
 
 	// 注册可调用函数
-	message.RegisterMessageServer(s.rpcServer, s)
+	message.RegisterChatroomServer(s.rpcServer, s)
 
 	if err := s.rpcServer.Serve(listener); err != nil {
 		glog.Errorln(logTag, `grpc服务启动失败`, err.Error())
@@ -89,7 +97,65 @@ func (s *Server) Stop() {
 
 /************************************** Function **************************************/
 
-func (s *Server) SendMessage(grpcMes message.Message_SendMessageServer) (err error) {
+func (s *Server) register(userID int64, srv message.Chatroom_ChatServer) {
+	s.Map.Store(userID, srv)
+}
+
+func (s *Server) unRegister(userID int64) {
+	s.Map.Delete(userID)
+}
+
+func (s *Server) getChatServer(userID int64) (srv message.Chatroom_ChatServer, ok bool) {
+	if srv, ok := s.Map.Load(userID); ok {
+		return srv.(message.Chatroom_ChatServer), ok
+	} else {
+		return nil, false
+	}
+}
+
+func (s *Server) single(userID int64, mes *message.Message) {
+	srv, ok := s.getChatServer(userID)
+	if !ok {
+		// TODO 对方暂时不在线
+		return
+	}
+
+	if err := srv.Send(mes); err != nil {
+		glog.Errorln(logTag, `Err Single TO user: `, userID, err)
+	}
+}
+
+func (s *Server) broadcast(msg *message.Message) {
+
+	glog.Infoln(logTag, fmt.Sprintf(`Broadcast msg from: %d, msg:%s`, msg.Sender, msg.Content))
+
+	s.Map.Range(
+		func(userIDI, srvI interface{}) bool {
+			userID := userIDI.(int64)
+			srv := srvI.(message.Chatroom_ChatServer)
+
+			if err := srv.Send(msg); err != nil {
+				glog.Errorln(logTag, `Err send msg err to `, userID, err)
+			}
+
+			return true
+		},
+	)
+
+}
+
+func (s *Server) deliver(msg *message.Message) {
+	if msg.SendTo != 0 {
+		s.single(msg.SendTo, msg)
+	} else {
+		s.broadcast(msg)
+	}
+}
+
+func (s *Server) Chat(chatServer message.Chatroom_ChatServer) (err error) {
+
+	var senderID int64
+
 	for {
 		select {
 		case <-s.ctx.Done():
@@ -97,19 +163,35 @@ func (s *Server) SendMessage(grpcMes message.Message_SendMessageServer) (err err
 			return
 
 		default:
-			mes, err := grpcMes.Recv()
+			msg, err := chatServer.Recv()
 			if err == io.EOF {
+				if senderID != 0 {
+					s.unRegister(senderID)
+				}
 				return nil
 			}
+
 			if err != nil {
-				glog.Errorf("failed to recv: %v", err)
+				if grpcErr, ok := status.FromError(err); ok {
+					if grpcErr.Code() == codes.Canceled {
+						if senderID != 0 {
+							s.unRegister(senderID)
+						}
+					}
+				}
+				glog.Errorf("%s chat error: %+v", logTag, err)
+
 				return err
 			}
 
-			glog.Info(logTag, mes.Content)
-			grpcMes.Send(&message.ResMes{Content: "Hello Client"})
+			// 判断是否需要注册
+			senderID = msg.Sender
+
+			if _, ok := s.getChatServer(msg.Sender); !ok {
+				s.register(msg.Sender, chatServer)
+			}
+
+			s.deliver(msg)
 		}
 	}
-
-	return nil
 }

@@ -37,7 +37,7 @@ dep-install: dep/protoc/bin/protoc
 # ------------------------------------------------------------------------------------------------------------------------------
 
 $(PROTO_TARGETS):     %.pb.go: %.proto
-	protoc -I $(dir $@) $< --go_out=plugins=grpc:$(dir $@)
+	@protoc -I $(dir $@) $< --go_out=plugins=grpc:$(dir $@)
 
 proto: $(PROTO_TARGETS)
 

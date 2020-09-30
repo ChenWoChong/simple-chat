@@ -13,15 +13,15 @@ import (
 )
 
 const (
-	logTag  string        = `[RPC_CLIENT]`
-	timeOut time.Duration = time.Second * 30
+	logTag  string = `[RPC_CLIENT]`
+	timeOut        = time.Second * 30
 )
 
 type Client struct {
 	ctx context.Context
 
 	opt       *config.ClientRpcOpt
-	rpcClient message.MessageClient
+	rpcClient message.ChatroomClient
 }
 
 func NewClient(ctx context.Context, opt *config.ClientRpcOpt) *Client {
@@ -80,7 +80,7 @@ func (c *Client) init() error {
 
 	glog.Infoln(logTag, conn.GetState())
 
-	c.rpcClient = message.NewMessageClient(conn)
+	c.rpcClient = message.NewChatroomClient(conn)
 
 	return nil
 }
@@ -91,7 +91,7 @@ func (c *Client) SendMessage(mes string) (err error) {
 	ctx, cancel := context.WithTimeout(c.ctx, timeOut*30)
 	defer cancel()
 
-	stream, err := c.rpcClient.SendMessage(ctx)
+	stream, err := c.rpcClient.Chat(ctx)
 	if err != nil {
 		glog.Errorf("failed to call: %v", err)
 		return
@@ -101,7 +101,7 @@ func (c *Client) SendMessage(mes string) (err error) {
 
 		time.Sleep(2 * time.Second)
 
-		stream.Send(&message.ReqMes{Content: mes})
+		err := stream.Send(&message.Message{Content: mes})
 		if err != nil {
 			glog.Errorf("failed to send: %v", err)
 			break

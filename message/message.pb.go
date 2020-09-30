@@ -29,16 +29,73 @@ const (
 // of the legacy proto package is being used.
 const _ = proto.ProtoPackageIsVersion4
 
-type ReqMes struct {
+type Type int32
+
+const (
+	Type_UNKNOWN Type = 0 // 未知
+	Type_SIMPLE  Type = 1 // 单人
+	Type_ALL     Type = 2 // 群发
+	Type_EXIT    Type = 3 // 退出
+)
+
+// Enum value maps for Type.
+var (
+	Type_name = map[int32]string{
+		0: "UNKNOWN",
+		1: "SIMPLE",
+		2: "ALL",
+		3: "EXIT",
+	}
+	Type_value = map[string]int32{
+		"UNKNOWN": 0,
+		"SIMPLE":  1,
+		"ALL":     2,
+		"EXIT":    3,
+	}
+)
+
+func (x Type) Enum() *Type {
+	p := new(Type)
+	*p = x
+	return p
+}
+
+func (x Type) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (Type) Descriptor() protoreflect.EnumDescriptor {
+	return file_message_proto_enumTypes[0].Descriptor()
+}
+
+func (Type) Type() protoreflect.EnumType {
+	return &file_message_proto_enumTypes[0]
+}
+
+func (x Type) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use Type.Descriptor instead.
+func (Type) EnumDescriptor() ([]byte, []int) {
+	return file_message_proto_rawDescGZIP(), []int{0}
+}
+
+type Message struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	Content string `protobuf:"bytes,1,opt,name=content,proto3" json:"content,omitempty"`
+	Id       int64  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	Sender   int64  `protobuf:"varint,2,opt,name=sender,proto3" json:"sender,omitempty"`
+	SendTo   int64  `protobuf:"varint,3,opt,name=sendTo,proto3" json:"sendTo,omitempty"`
+	Content  string `protobuf:"bytes,4,opt,name=content,proto3" json:"content,omitempty"`
+	Type     Type   `protobuf:"varint,5,opt,name=type,proto3,enum=message.Type" json:"type,omitempty"`
+	SendTime int64  `protobuf:"varint,6,opt,name=send_time,json=sendTime,proto3" json:"send_time,omitempty"`
 }
 
-func (x *ReqMes) Reset() {
-	*x = ReqMes{}
+func (x *Message) Reset() {
+	*x = Message{}
 	if protoimpl.UnsafeEnabled {
 		mi := &file_message_proto_msgTypes[0]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -46,13 +103,13 @@ func (x *ReqMes) Reset() {
 	}
 }
 
-func (x *ReqMes) String() string {
+func (x *Message) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*ReqMes) ProtoMessage() {}
+func (*Message) ProtoMessage() {}
 
-func (x *ReqMes) ProtoReflect() protoreflect.Message {
+func (x *Message) ProtoReflect() protoreflect.Message {
 	mi := &file_message_proto_msgTypes[0]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -64,80 +121,77 @@ func (x *ReqMes) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use ReqMes.ProtoReflect.Descriptor instead.
-func (*ReqMes) Descriptor() ([]byte, []int) {
+// Deprecated: Use Message.ProtoReflect.Descriptor instead.
+func (*Message) Descriptor() ([]byte, []int) {
 	return file_message_proto_rawDescGZIP(), []int{0}
 }
 
-func (x *ReqMes) GetContent() string {
+func (x *Message) GetId() int64 {
+	if x != nil {
+		return x.Id
+	}
+	return 0
+}
+
+func (x *Message) GetSender() int64 {
+	if x != nil {
+		return x.Sender
+	}
+	return 0
+}
+
+func (x *Message) GetSendTo() int64 {
+	if x != nil {
+		return x.SendTo
+	}
+	return 0
+}
+
+func (x *Message) GetContent() string {
 	if x != nil {
 		return x.Content
 	}
 	return ""
 }
 
-type ResMes struct {
-	state         protoimpl.MessageState
-	sizeCache     protoimpl.SizeCache
-	unknownFields protoimpl.UnknownFields
-
-	Content string `protobuf:"bytes,1,opt,name=content,proto3" json:"content,omitempty"`
-}
-
-func (x *ResMes) Reset() {
-	*x = ResMes{}
-	if protoimpl.UnsafeEnabled {
-		mi := &file_message_proto_msgTypes[1]
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		ms.StoreMessageInfo(mi)
-	}
-}
-
-func (x *ResMes) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*ResMes) ProtoMessage() {}
-
-func (x *ResMes) ProtoReflect() protoreflect.Message {
-	mi := &file_message_proto_msgTypes[1]
-	if protoimpl.UnsafeEnabled && x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use ResMes.ProtoReflect.Descriptor instead.
-func (*ResMes) Descriptor() ([]byte, []int) {
-	return file_message_proto_rawDescGZIP(), []int{1}
-}
-
-func (x *ResMes) GetContent() string {
+func (x *Message) GetType() Type {
 	if x != nil {
-		return x.Content
+		return x.Type
 	}
-	return ""
+	return Type_UNKNOWN
+}
+
+func (x *Message) GetSendTime() int64 {
+	if x != nil {
+		return x.SendTime
+	}
+	return 0
 }
 
 var File_message_proto protoreflect.FileDescriptor
 
 var file_message_proto_rawDesc = []byte{
 	0x0a, 0x0d, 0x6d, 0x65, 0x73, 0x73, 0x61, 0x67, 0x65, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x12,
-	0x07, 0x6d, 0x65, 0x73, 0x73, 0x61, 0x67, 0x65, 0x22, 0x22, 0x0a, 0x06, 0x52, 0x65, 0x71, 0x4d,
-	0x65, 0x73, 0x12, 0x18, 0x0a, 0x07, 0x63, 0x6f, 0x6e, 0x74, 0x65, 0x6e, 0x74, 0x18, 0x01, 0x20,
-	0x01, 0x28, 0x09, 0x52, 0x07, 0x63, 0x6f, 0x6e, 0x74, 0x65, 0x6e, 0x74, 0x22, 0x22, 0x0a, 0x06,
-	0x52, 0x65, 0x73, 0x4d, 0x65, 0x73, 0x12, 0x18, 0x0a, 0x07, 0x63, 0x6f, 0x6e, 0x74, 0x65, 0x6e,
-	0x74, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x07, 0x63, 0x6f, 0x6e, 0x74, 0x65, 0x6e, 0x74,
-	0x32, 0x3e, 0x0a, 0x07, 0x4d, 0x65, 0x73, 0x73, 0x61, 0x67, 0x65, 0x12, 0x33, 0x0a, 0x0b, 0x53,
-	0x65, 0x6e, 0x64, 0x4d, 0x65, 0x73, 0x73, 0x61, 0x67, 0x65, 0x12, 0x0f, 0x2e, 0x6d, 0x65, 0x73,
-	0x73, 0x61, 0x67, 0x65, 0x2e, 0x52, 0x65, 0x71, 0x4d, 0x65, 0x73, 0x1a, 0x0f, 0x2e, 0x6d, 0x65,
-	0x73, 0x73, 0x61, 0x67, 0x65, 0x2e, 0x52, 0x65, 0x73, 0x4d, 0x65, 0x73, 0x28, 0x01, 0x30, 0x01,
-	0x42, 0x09, 0x5a, 0x07, 0x6d, 0x65, 0x73, 0x73, 0x61, 0x67, 0x65, 0x62, 0x06, 0x70, 0x72, 0x6f,
-	0x74, 0x6f, 0x33,
+	0x07, 0x6d, 0x65, 0x73, 0x73, 0x61, 0x67, 0x65, 0x22, 0xa3, 0x01, 0x0a, 0x07, 0x4d, 0x65, 0x73,
+	0x73, 0x61, 0x67, 0x65, 0x12, 0x0e, 0x0a, 0x02, 0x69, 0x64, 0x18, 0x01, 0x20, 0x01, 0x28, 0x03,
+	0x52, 0x02, 0x69, 0x64, 0x12, 0x16, 0x0a, 0x06, 0x73, 0x65, 0x6e, 0x64, 0x65, 0x72, 0x18, 0x02,
+	0x20, 0x01, 0x28, 0x03, 0x52, 0x06, 0x73, 0x65, 0x6e, 0x64, 0x65, 0x72, 0x12, 0x16, 0x0a, 0x06,
+	0x73, 0x65, 0x6e, 0x64, 0x54, 0x6f, 0x18, 0x03, 0x20, 0x01, 0x28, 0x03, 0x52, 0x06, 0x73, 0x65,
+	0x6e, 0x64, 0x54, 0x6f, 0x12, 0x18, 0x0a, 0x07, 0x63, 0x6f, 0x6e, 0x74, 0x65, 0x6e, 0x74, 0x18,
+	0x04, 0x20, 0x01, 0x28, 0x09, 0x52, 0x07, 0x63, 0x6f, 0x6e, 0x74, 0x65, 0x6e, 0x74, 0x12, 0x21,
+	0x0a, 0x04, 0x74, 0x79, 0x70, 0x65, 0x18, 0x05, 0x20, 0x01, 0x28, 0x0e, 0x32, 0x0d, 0x2e, 0x6d,
+	0x65, 0x73, 0x73, 0x61, 0x67, 0x65, 0x2e, 0x54, 0x79, 0x70, 0x65, 0x52, 0x04, 0x74, 0x79, 0x70,
+	0x65, 0x12, 0x1b, 0x0a, 0x09, 0x73, 0x65, 0x6e, 0x64, 0x5f, 0x74, 0x69, 0x6d, 0x65, 0x18, 0x06,
+	0x20, 0x01, 0x28, 0x03, 0x52, 0x08, 0x73, 0x65, 0x6e, 0x64, 0x54, 0x69, 0x6d, 0x65, 0x2a, 0x32,
+	0x0a, 0x04, 0x54, 0x79, 0x70, 0x65, 0x12, 0x0b, 0x0a, 0x07, 0x55, 0x4e, 0x4b, 0x4e, 0x4f, 0x57,
+	0x4e, 0x10, 0x00, 0x12, 0x0a, 0x0a, 0x06, 0x53, 0x49, 0x4d, 0x50, 0x4c, 0x45, 0x10, 0x01, 0x12,
+	0x07, 0x0a, 0x03, 0x41, 0x4c, 0x4c, 0x10, 0x02, 0x12, 0x08, 0x0a, 0x04, 0x45, 0x58, 0x49, 0x54,
+	0x10, 0x03, 0x32, 0x3a, 0x0a, 0x08, 0x43, 0x68, 0x61, 0x74, 0x72, 0x6f, 0x6f, 0x6d, 0x12, 0x2e,
+	0x0a, 0x04, 0x43, 0x68, 0x61, 0x74, 0x12, 0x10, 0x2e, 0x6d, 0x65, 0x73, 0x73, 0x61, 0x67, 0x65,
+	0x2e, 0x4d, 0x65, 0x73, 0x73, 0x61, 0x67, 0x65, 0x1a, 0x10, 0x2e, 0x6d, 0x65, 0x73, 0x73, 0x61,
+	0x67, 0x65, 0x2e, 0x4d, 0x65, 0x73, 0x73, 0x61, 0x67, 0x65, 0x28, 0x01, 0x30, 0x01, 0x42, 0x0c,
+	0x5a, 0x0a, 0x2e, 0x2e, 0x2f, 0x6d, 0x65, 0x73, 0x73, 0x61, 0x67, 0x65, 0x62, 0x06, 0x70, 0x72,
+	0x6f, 0x74, 0x6f, 0x33,
 }
 
 var (
@@ -152,19 +206,21 @@ func file_message_proto_rawDescGZIP() []byte {
 	return file_message_proto_rawDescData
 }
 
-var file_message_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
+var file_message_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
+var file_message_proto_msgTypes = make([]protoimpl.MessageInfo, 1)
 var file_message_proto_goTypes = []interface{}{
-	(*ReqMes)(nil), // 0: message.ReqMes
-	(*ResMes)(nil), // 1: message.ResMes
+	(Type)(0),       // 0: message.Type
+	(*Message)(nil), // 1: message.Message
 }
 var file_message_proto_depIdxs = []int32{
-	0, // 0: message.Message.SendMessage:input_type -> message.ReqMes
-	1, // 1: message.Message.SendMessage:output_type -> message.ResMes
-	1, // [1:2] is the sub-list for method output_type
-	0, // [0:1] is the sub-list for method input_type
-	0, // [0:0] is the sub-list for extension type_name
-	0, // [0:0] is the sub-list for extension extendee
-	0, // [0:0] is the sub-list for field type_name
+	0, // 0: message.Message.type:type_name -> message.Type
+	1, // 1: message.Chatroom.Chat:input_type -> message.Message
+	1, // 2: message.Chatroom.Chat:output_type -> message.Message
+	2, // [2:3] is the sub-list for method output_type
+	1, // [1:2] is the sub-list for method input_type
+	1, // [1:1] is the sub-list for extension type_name
+	1, // [1:1] is the sub-list for extension extendee
+	0, // [0:1] is the sub-list for field type_name
 }
 
 func init() { file_message_proto_init() }
@@ -174,19 +230,7 @@ func file_message_proto_init() {
 	}
 	if !protoimpl.UnsafeEnabled {
 		file_message_proto_msgTypes[0].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*ReqMes); i {
-			case 0:
-				return &v.state
-			case 1:
-				return &v.sizeCache
-			case 2:
-				return &v.unknownFields
-			default:
-				return nil
-			}
-		}
-		file_message_proto_msgTypes[1].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*ResMes); i {
+			switch v := v.(*Message); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -203,13 +247,14 @@ func file_message_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: file_message_proto_rawDesc,
-			NumEnums:      0,
-			NumMessages:   2,
+			NumEnums:      1,
+			NumMessages:   1,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
 		GoTypes:           file_message_proto_goTypes,
 		DependencyIndexes: file_message_proto_depIdxs,
+		EnumInfos:         file_message_proto_enumTypes,
 		MessageInfos:      file_message_proto_msgTypes,
 	}.Build()
 	File_message_proto = out.File
@@ -226,103 +271,103 @@ var _ grpc.ClientConnInterface
 // is compatible with the grpc package it is being compiled against.
 const _ = grpc.SupportPackageIsVersion6
 
-// MessageClient is the client API for Message service.
+// ChatroomClient is the client API for Chatroom service.
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://godoc.org/google.golang.org/grpc#ClientConn.NewStream.
-type MessageClient interface {
-	SendMessage(ctx context.Context, opts ...grpc.CallOption) (Message_SendMessageClient, error)
+type ChatroomClient interface {
+	Chat(ctx context.Context, opts ...grpc.CallOption) (Chatroom_ChatClient, error)
 }
 
-type messageClient struct {
+type chatroomClient struct {
 	cc grpc.ClientConnInterface
 }
 
-func NewMessageClient(cc grpc.ClientConnInterface) MessageClient {
-	return &messageClient{cc}
+func NewChatroomClient(cc grpc.ClientConnInterface) ChatroomClient {
+	return &chatroomClient{cc}
 }
 
-func (c *messageClient) SendMessage(ctx context.Context, opts ...grpc.CallOption) (Message_SendMessageClient, error) {
-	stream, err := c.cc.NewStream(ctx, &_Message_serviceDesc.Streams[0], "/message.Message/SendMessage", opts...)
+func (c *chatroomClient) Chat(ctx context.Context, opts ...grpc.CallOption) (Chatroom_ChatClient, error) {
+	stream, err := c.cc.NewStream(ctx, &_Chatroom_serviceDesc.Streams[0], "/message.Chatroom/Chat", opts...)
 	if err != nil {
 		return nil, err
 	}
-	x := &messageSendMessageClient{stream}
+	x := &chatroomChatClient{stream}
 	return x, nil
 }
 
-type Message_SendMessageClient interface {
-	Send(*ReqMes) error
-	Recv() (*ResMes, error)
+type Chatroom_ChatClient interface {
+	Send(*Message) error
+	Recv() (*Message, error)
 	grpc.ClientStream
 }
 
-type messageSendMessageClient struct {
+type chatroomChatClient struct {
 	grpc.ClientStream
 }
 
-func (x *messageSendMessageClient) Send(m *ReqMes) error {
+func (x *chatroomChatClient) Send(m *Message) error {
 	return x.ClientStream.SendMsg(m)
 }
 
-func (x *messageSendMessageClient) Recv() (*ResMes, error) {
-	m := new(ResMes)
+func (x *chatroomChatClient) Recv() (*Message, error) {
+	m := new(Message)
 	if err := x.ClientStream.RecvMsg(m); err != nil {
 		return nil, err
 	}
 	return m, nil
 }
 
-// MessageServer is the server API for Message service.
-type MessageServer interface {
-	SendMessage(Message_SendMessageServer) error
+// ChatroomServer is the server API for Chatroom service.
+type ChatroomServer interface {
+	Chat(Chatroom_ChatServer) error
 }
 
-// UnimplementedMessageServer can be embedded to have forward compatible implementations.
-type UnimplementedMessageServer struct {
+// UnimplementedChatroomServer can be embedded to have forward compatible implementations.
+type UnimplementedChatroomServer struct {
 }
 
-func (*UnimplementedMessageServer) SendMessage(Message_SendMessageServer) error {
-	return status.Errorf(codes.Unimplemented, "method SendMessage not implemented")
+func (*UnimplementedChatroomServer) Chat(Chatroom_ChatServer) error {
+	return status.Errorf(codes.Unimplemented, "method Chat not implemented")
 }
 
-func RegisterMessageServer(s *grpc.Server, srv MessageServer) {
-	s.RegisterService(&_Message_serviceDesc, srv)
+func RegisterChatroomServer(s *grpc.Server, srv ChatroomServer) {
+	s.RegisterService(&_Chatroom_serviceDesc, srv)
 }
 
-func _Message_SendMessage_Handler(srv interface{}, stream grpc.ServerStream) error {
-	return srv.(MessageServer).SendMessage(&messageSendMessageServer{stream})
+func _Chatroom_Chat_Handler(srv interface{}, stream grpc.ServerStream) error {
+	return srv.(ChatroomServer).Chat(&chatroomChatServer{stream})
 }
 
-type Message_SendMessageServer interface {
-	Send(*ResMes) error
-	Recv() (*ReqMes, error)
+type Chatroom_ChatServer interface {
+	Send(*Message) error
+	Recv() (*Message, error)
 	grpc.ServerStream
 }
 
-type messageSendMessageServer struct {
+type chatroomChatServer struct {
 	grpc.ServerStream
 }
 
-func (x *messageSendMessageServer) Send(m *ResMes) error {
+func (x *chatroomChatServer) Send(m *Message) error {
 	return x.ServerStream.SendMsg(m)
 }
 
-func (x *messageSendMessageServer) Recv() (*ReqMes, error) {
-	m := new(ReqMes)
+func (x *chatroomChatServer) Recv() (*Message, error) {
+	m := new(Message)
 	if err := x.ServerStream.RecvMsg(m); err != nil {
 		return nil, err
 	}
 	return m, nil
 }
 
-var _Message_serviceDesc = grpc.ServiceDesc{
-	ServiceName: "message.Message",
-	HandlerType: (*MessageServer)(nil),
+var _Chatroom_serviceDesc = grpc.ServiceDesc{
+	ServiceName: "message.Chatroom",
+	HandlerType: (*ChatroomServer)(nil),
 	Methods:     []grpc.MethodDesc{},
 	Streams: []grpc.StreamDesc{
 		{
-			StreamName:    "SendMessage",
-			Handler:       _Message_SendMessage_Handler,
+			StreamName:    "Chat",
+			Handler:       _Chatroom_Chat_Handler,
 			ServerStreams: true,
 			ClientStreams: true,
 		},

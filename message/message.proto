@@ -1,16 +1,24 @@
 syntax = "proto3";
 
 package message;
-option go_package = "message";
+option go_package = "../message";
 
-service Message {
-    rpc SendMessage (stream ReqMes) returns (stream ResMes);
+service Chatroom {
+    rpc Chat (stream Message) returns (stream Message);
 }
 
-message ReqMes {
-    string content = 1;
+enum Type {
+    UNKNOWN = 0; // 未知
+    SIMPLE = 1; // 单人
+    ALL = 2; // 群发
+    EXIT = 3; // 退出
 }
 
-message ResMes {
-    string content = 1;
+message Message {
+    int64 id = 1;
+    int64 sender = 2;
+    int64 sendTo = 3;
+    string content = 4;
+    Type type = 5;
+    int64 send_time = 6;
 }
