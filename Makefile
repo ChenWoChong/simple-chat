@@ -16,7 +16,7 @@ TARGETS = server client
 #DOCKER_TARGETS=$(foreach n,$(TARGETS),$(n)_docker)
 #DOCKER_PUSH=$(foreach n,$(TARGETS),$(n)_push)
 
-.PHONY: ${TARGETS}
+.PHONY: ${TARGETS} build
 
 # ------------------------------------------------------------------------------------------------------------------------------
 
@@ -89,7 +89,52 @@ client_docker: client
 	@chmod +x ${DESTDIR}/client-${VERSION}/docker-entrypoint.sh
 	@cd ${DESTDIR}/client-${VERSION}/;docker build -t client:latest ./
 
+# ------------------------------------------------------------------------------------------------------------------------------
 
+prepare:
+	# TODO
+
+build: client_docker server_docker
+
+run: build
+	@docker run --net ccloud -it -d --restart=always \
+       --name server \
+       -p 12345:12345 \
+       server:latest
+
+	@docker run --net ccloud -it -d --restart=always \
+      --name client \
+      client:latest
+
+
+update:
+	@docker stop server && docker rm server
+	@docker rmi -f server:latest
+
+	@make server_docker
+	@docker run --net ccloud -it -d --restart=always \
+      --name server \
+      -p 12345:12345 \
+      server:latest
+	#  -v /etc/localtime:/etc/localtime:ro \
+	#  -v "${HOME}"/data/k8s/config/server/conf:/conf \
+
+	@docker stop client && docker rm client
+	@docker rmi -f client:latest
+
+	@make client_docker
+	@docker run --net ccloud -it -d --restart=always \
+	  --name client \
+	  client:latest
+    #  -p 12345:12345 \
+
+test:
+	# todo
 
 clean:
+	@docker stop server && docker rm server
+	@docker rmi -f server:latest
+	@docker stop client && docker rm client
+	@docker rmi -f client:latest
+
 	rm -rf ${DESTDIR}
