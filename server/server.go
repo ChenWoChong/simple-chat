@@ -97,45 +97,45 @@ func (s *Server) Stop() {
 
 /************************************** Function **************************************/
 
-func (s *Server) register(userID int64, srv message.Chatroom_ChatServer) {
-	s.Map.Store(userID, srv)
+func (s *Server) register(userName string, srv message.Chatroom_ChatServer) {
+	s.Map.Store(userName, srv)
 }
 
-func (s *Server) unRegister(userID int64) {
-	s.Map.Delete(userID)
+func (s *Server) unRegister(userName string) {
+	s.Map.Delete(userName)
 }
 
-func (s *Server) getChatServer(userID int64) (srv message.Chatroom_ChatServer, ok bool) {
-	if srv, ok := s.Map.Load(userID); ok {
+func (s *Server) getChatServer(userName string) (srv message.Chatroom_ChatServer, ok bool) {
+	if srv, ok := s.Map.Load(userName); ok {
 		return srv.(message.Chatroom_ChatServer), ok
 	} else {
 		return nil, false
 	}
 }
 
-func (s *Server) single(userID int64, mes *message.Message) {
-	srv, ok := s.getChatServer(userID)
+func (s *Server) single(userName string, mes *message.Message) {
+	srv, ok := s.getChatServer(userName)
 	if !ok {
 		// TODO 对方暂时不在线
 		return
 	}
 
 	if err := srv.Send(mes); err != nil {
-		glog.Errorln(logTag, `Err Single TO user: `, userID, err)
+		glog.Errorln(logTag, `Err Single TO user: `, userName, err)
 	}
 }
 
 func (s *Server) broadcast(msg *message.Message) {
 
-	glog.Infoln(logTag, fmt.Sprintf(`Broadcast msg from: %d, msg:%s`, msg.Sender, msg.Content))
+	glog.Infoln(logTag, fmt.Sprintf(`Broadcast msg from: %s, msg:%s`, msg.Sender, msg.Content))
 
 	s.Map.Range(
-		func(userIDI, srvI interface{}) bool {
-			userID := userIDI.(int64)
+		func(userNameI, srvI interface{}) bool {
+			userName := userNameI.(string)
 			srv := srvI.(message.Chatroom_ChatServer)
 
 			if err := srv.Send(msg); err != nil {
-				glog.Errorln(logTag, `Err send msg err to `, userID, err)
+				glog.Errorln(logTag, `Err send msg err to `, userName, err)
 			}
 
 			return true
@@ -145,7 +145,7 @@ func (s *Server) broadcast(msg *message.Message) {
 }
 
 func (s *Server) deliver(msg *message.Message) {
-	if msg.SendTo != 0 {
+	if msg.SendTo != "" {
 		s.single(msg.SendTo, msg)
 	} else {
 		s.broadcast(msg)
@@ -154,7 +154,7 @@ func (s *Server) deliver(msg *message.Message) {
 
 func (s *Server) Chat(chatServer message.Chatroom_ChatServer) (err error) {
 
-	var senderID int64
+	var sender string
 
 	for {
 		select {
@@ -163,10 +163,12 @@ func (s *Server) Chat(chatServer message.Chatroom_ChatServer) (err error) {
 			return
 
 		default:
+
+			// 消息接收
 			msg, err := chatServer.Recv()
 			if err == io.EOF {
-				if senderID != 0 {
-					s.unRegister(senderID)
+				if sender != "" {
+					s.unRegister(sender)
 				}
 				return nil
 			}
@@ -174,8 +176,8 @@ func (s *Server) Chat(chatServer message.Chatroom_ChatServer) (err error) {
 			if err != nil {
 				if grpcErr, ok := status.FromError(err); ok {
 					if grpcErr.Code() == codes.Canceled {
-						if senderID != 0 {
-							s.unRegister(senderID)
+						if sender != "" {
+							s.unRegister(sender)
 						}
 					}
 				}
@@ -184,13 +186,14 @@ func (s *Server) Chat(chatServer message.Chatroom_ChatServer) (err error) {
 				return err
 			}
 
-			// 判断是否需要注册
-			senderID = msg.Sender
+			sender = msg.Sender
 
+			// 判断是否需要注册
 			if _, ok := s.getChatServer(msg.Sender); !ok {
 				s.register(msg.Sender, chatServer)
 			}
 
+			// 消息传递
 			s.deliver(msg)
 		}
 	}

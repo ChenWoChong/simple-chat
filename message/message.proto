@@ -16,8 +16,8 @@ enum Type {
 
 message Message {
     int64 id = 1;
-    int64 sender = 2;
-    int64 sendTo = 3;
+    string sender = 2;
+    string sendTo = 3;
     string content = 4;
     Type type = 5;
     int64 send_time = 6;
