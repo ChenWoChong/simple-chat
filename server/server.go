@@ -21,6 +21,8 @@ const (
 	netWork = `tcp`
 )
 
+var msgNumber int64 // TODO 为消息排序，临时使用number， 需考虑并发修改安全问题
+
 //Server real grpc service server
 type Server struct {
 	ctx context.Context // 上下文
@@ -187,6 +189,11 @@ func (s *Server) Chat(chatServer message.Chatroom_ChatServer) (err error) {
 			}
 
 			sender = msg.Sender
+
+			{
+				msgNumber++
+				msg.Id = string(msgNumber)
+			}
 
 			// 判断是否需要注册
 			if _, ok := s.getChatServer(msg.Sender); !ok {

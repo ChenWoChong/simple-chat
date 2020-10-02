@@ -87,31 +87,9 @@ func (c *Client) init() error {
 
 /*************************************** call Server ***************************************/
 
-func (c *Client) SendMessage(mes string) (err error) {
-	ctx, cancel := context.WithTimeout(c.ctx, timeOut*30)
-	defer cancel()
+func (c *Client) Chat() (message.Chatroom_ChatClient, error) {
+	ctx, _ := context.WithTimeout(c.ctx, timeOut*30)
+	//defer cancel()
 
-	stream, err := c.rpcClient.Chat(ctx)
-	if err != nil {
-		glog.Errorf("failed to call: %v", err)
-		return
-	}
-
-	for {
-
-		time.Sleep(2 * time.Second)
-
-		err := stream.Send(&message.Message{Content: mes})
-		if err != nil {
-			glog.Errorf("failed to send: %v", err)
-			break
-		}
-		reply, err := stream.Recv()
-		if err != nil {
-			glog.Errorf("failed to recv: %v", err)
-			break
-		}
-		glog.Info(logTag, "Greeting: ", reply.Content)
-	}
-	return
+	return c.rpcClient.Chat(ctx)
 }

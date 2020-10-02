@@ -15,7 +15,7 @@ enum Type {
 }
 
 message Message {
-    int64 id = 1;
+    string id = 1;
     string sender = 2;
     string sendTo = 3;
     string content = 4;
