@@ -4,6 +4,9 @@ package message;
 option go_package = "../message";
 
 service Chatroom {
+
+    rpc Login (LoginReq) returns (LoginRes);
+    rpc GetUserList (BaseReq) returns (UserList);
     rpc Chat (stream Message) returns (stream Message);
 }
 
@@ -12,6 +15,30 @@ enum Type {
     SIMPLE = 1; // 单人
     ALL = 2; // 群发
     EXIT = 3; // 退出
+    LOGIN = 4; // 登录
+}
+
+message LoginReq {
+    string UserName = 1;
+}
+
+message LoginRes {
+    string UserName = 1;
+    bool State = 2;
+    string Info = 3;
+}
+
+message BaseReq {
+}
+
+message UserList {
+    repeated UserInfo Users = 1;
+}
+
+message UserInfo {
+    bool State = 1;
+    string UserName = 2;
+    string UserID = 3;
 }
 
 message Message {

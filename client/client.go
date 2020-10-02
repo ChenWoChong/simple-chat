@@ -87,9 +87,20 @@ func (c *Client) init() error {
 
 /*************************************** call Server ***************************************/
 
-func (c *Client) Chat() (message.Chatroom_ChatClient, error) {
-	ctx, _ := context.WithTimeout(c.ctx, timeOut*30)
+func (c *Client) Chat(ctx context.Context) (message.Chatroom_ChatClient, error) {
+	//ctx, _ := context.WithTimeout(c.ctx, timeOut*30)
 	//defer cancel()
 
 	return c.rpcClient.Chat(ctx)
+}
+
+func (c *Client) Login(ctx context.Context, userName string) (*message.LoginRes, error) {
+
+	return c.rpcClient.Login(ctx, &message.LoginReq{
+		UserName: userName,
+	})
+}
+
+func (c *Client) GetUserList(ctx context.Context) (*message.UserList, error) {
+	return c.rpcClient.GetUserList(ctx, &message.BaseReq{})
 }

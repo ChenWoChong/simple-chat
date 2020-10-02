@@ -6,6 +6,7 @@ import (
 	"github.com/ChenWoChong/simple-chat/config"
 	"github.com/ChenWoChong/simple-chat/message"
 	"github.com/golang/glog"
+	"github.com/google/uuid"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials"
@@ -13,6 +14,7 @@ import (
 	"google.golang.org/grpc/status"
 	"io"
 	"net"
+	"strconv"
 	"sync"
 )
 
@@ -21,7 +23,9 @@ const (
 	netWork = `tcp`
 )
 
-var msgNumber int64 // TODO 为消息排序，临时使用number， 需考虑并发修改安全问题
+var (
+	msgNumber int64 // TODO 为消息排序，临时使用number， 需考虑并发修改安全问题
+)
 
 //Server real grpc service server
 type Server struct {
@@ -32,15 +36,17 @@ type Server struct {
 
 	message.UnimplementedChatroomServer
 
-	sync.Map // 存储用户连接关系：map[senderID]Chatroom_ChatServer
+	sync.Map   // 存储用户连接关系：map[senderID]Chatroom_ChatServer
+	allUserMap *UserMap
 }
 
 //NewServer NewServer
 func NewServer(ctx context.Context, opt *config.ServerRpcOpt) *Server {
-	rpcServer := &Server{ctx: ctx, opt: opt}
+	rpcServer := &Server{ctx: ctx, opt: opt, allUserMap: NewUserMap()}
 	if err := rpcServer.init(); err != nil {
 		glog.Fatal(logTag, err)
 	}
+
 	return rpcServer
 }
 
@@ -97,7 +103,7 @@ func (s *Server) Stop() {
 	s.rpcServer.GracefulStop()
 }
 
-/************************************** Function **************************************/
+/**************************************************************************** Function ****************************************************************************/
 
 func (s *Server) register(userName string, srv message.Chatroom_ChatServer) {
 	s.Map.Store(userName, srv)
@@ -146,12 +152,74 @@ func (s *Server) broadcast(msg *message.Message) {
 
 }
 
-func (s *Server) deliver(msg *message.Message) {
+func (s *Server) handle(msg *message.Message, chatServer message.Chatroom_ChatServer) {
+
+	// 判断是否已经注册
+	if _, ok := s.getChatServer(msg.Sender); !ok {
+		s.register(msg.Sender, chatServer)
+		//s.allUserMap.SetUserState(msg.Sender, true)
+	}
+
+	// 消息分发
+	msgNumber++
+	msg.Id = strconv.FormatInt(msgNumber, 10)
+
 	if msg.SendTo != "" {
 		s.single(msg.SendTo, msg)
 	} else {
 		s.broadcast(msg)
 	}
+}
+
+func (s *Server) Login(ctx context.Context, loginReq *message.LoginReq) (*message.LoginRes, error) {
+
+	userName := loginReq.UserName
+
+	// 用户是否已存在
+	_, exist := s.allUserMap.GetUserInfo(userName)
+	if exist {
+
+		// 用户是否已经登录
+		_, ok := s.getChatServer(userName)
+		if ok {
+			failMes := &message.LoginRes{
+				UserName: userName,
+				State:    false,
+				Info:     `User logged in`,
+			}
+			return failMes, nil
+		}
+
+	} else { // 不存在, 则存储到用户表
+		userInfo := UserInfo{
+			UserID:   uuid.New().String(),
+			UserName: userName,
+			IsOnline: true,
+		}
+		s.allUserMap.AddUser(userInfo)
+	}
+
+	// 设置user为在线
+	s.allUserMap.SetUserState(userName, true)
+
+	successMes := &message.LoginRes{
+		UserName: userName,
+		State:    true,
+		Info:     `Login Success`,
+	}
+
+	return successMes, nil
+}
+
+func (s *Server) GetUserList(ctx context.Context, msg *message.BaseReq) (*message.UserList, error) {
+
+	users := make([]*message.UserInfo, 0)
+
+	for _, userInfo := range s.allUserMap.GetAllUserList() {
+		users = append(users, &message.UserInfo{UserName: userInfo.UserName, State: userInfo.IsOnline})
+	}
+
+	return &message.UserList{Users: users}, nil
 }
 
 func (s *Server) Chat(chatServer message.Chatroom_ChatServer) (err error) {
@@ -171,6 +239,7 @@ func (s *Server) Chat(chatServer message.Chatroom_ChatServer) (err error) {
 			if err == io.EOF {
 				if sender != "" {
 					s.unRegister(sender)
+					s.allUserMap.SetUserState(sender, false)
 				}
 				return nil
 			}
@@ -180,6 +249,7 @@ func (s *Server) Chat(chatServer message.Chatroom_ChatServer) (err error) {
 					if grpcErr.Code() == codes.Canceled {
 						if sender != "" {
 							s.unRegister(sender)
+							s.allUserMap.SetUserState(sender, false)
 						}
 					}
 				}
@@ -190,18 +260,8 @@ func (s *Server) Chat(chatServer message.Chatroom_ChatServer) (err error) {
 
 			sender = msg.Sender
 
-			{
-				msgNumber++
-				msg.Id = string(msgNumber)
-			}
-
-			// 判断是否需要注册
-			if _, ok := s.getChatServer(msg.Sender); !ok {
-				s.register(msg.Sender, chatServer)
-			}
-
-			// 消息传递
-			s.deliver(msg)
+			// 处理传递
+			s.handle(msg, chatServer)
 		}
 	}
 }

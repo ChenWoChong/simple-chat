@@ -93,14 +93,18 @@ func main() {
 	// init
 	config.LoadConfOrDie(*confFile)
 
-	ctx, _ := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
 	rpcClient = client.NewClient(ctx, &config.Get().ClientRpcOpt)
 
 	// run
 	glog.Infoln(logTag, `Client start...`)
-	setupTerminal()
+
 	setupLogin()
-	go loopForMessages(rpcClient)
+	setupTerminal()
+
+	go loopForMessages(ctx, rpcClient)
 
 	if err := terminal.Run(); err != nil {
 		log.Fatal("failed to run app:", err)
@@ -133,7 +137,7 @@ func setupTerminal() {
 		text := input.GetText()
 		go func() {
 			err := chatClient.Send(&message.Message{
-				Sender:   "test1",
+				Sender:   userName,
 				Content:  text,
 				SendTime: time.Now().Unix(),
 			})
@@ -155,7 +159,7 @@ func setupTerminal() {
 
 }
 
-func loopForMessages(rpcClient *client.Client) {
+func loopForMessages(ctx context.Context, rpcClient *client.Client) {
 	//chatClient, err := .Messages(context.Background(), &push.MessagesRequest{
 	//	ChatroomID: chatroomID,
 	//})
@@ -164,7 +168,7 @@ func loopForMessages(rpcClient *client.Client) {
 	//queryLatestMessages()
 
 	var err error
-	chatClient, err = rpcClient.Chat()
+	chatClient, err = rpcClient.Chat(ctx)
 	if err != nil {
 		log.Fatal("failed to call push.Messages:", err)
 	}
@@ -179,6 +183,7 @@ func loopForMessages(rpcClient *client.Client) {
 		messageMap.Add(reply)
 		terminal.QueueUpdateDraw(func() {
 			updateHistory()
+			updateUserList()
 		})
 	}
 }
@@ -187,33 +192,45 @@ func setupLogin() {
 
 	loginForm = tview.NewForm().
 		AddInputField("UserName", "", 20, nil, nil).SetLabelColor(tcell.ColorDarkBlue).
-		AddButton("Login", func() {
-
-			userName = loginForm.GetFormItem(0).(*tview.InputField).GetText()
-
-			terminal.SetRoot(termFlex, true).SetFocus(input)
-
-			historyFocus := false
-			terminal.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
-				if event.Key() == tcell.KeyTAB {
-					historyFocus = !historyFocus
-					if historyFocus {
-						terminal.SetFocus(history)
-					} else {
-						terminal.SetFocus(input)
-					}
-					return nil
-				}
-				return event
-			})
-
-		}).
+		AddButton("Login", openChatroom).
 		AddButton("Quit", func() {
 			terminal.Stop()
 		})
 	loginForm.SetBorder(true).SetTitle("Please inter your userName to login").SetTitleAlign(tview.AlignCenter)
 
 	terminal = tview.NewApplication().SetRoot(loginForm, true).SetFocus(loginForm)
+}
+
+func openChatroom() {
+
+	// 用户登录
+	userName = loginForm.GetFormItem(0).(*tview.InputField).GetText()
+
+	loginRes, err := rpcClient.Login(context.Background(), userName)
+	if err != nil {
+		terminal.Stop()
+	} else {
+		if loginRes.State == false {
+			terminal.Stop()
+		}
+	}
+
+	// open chatroom
+	terminal.SetRoot(termFlex, true).SetFocus(input)
+
+	historyFocus := false
+	terminal.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		if event.Key() == tcell.KeyTAB {
+			historyFocus = !historyFocus
+			if historyFocus {
+				terminal.SetFocus(history)
+			} else {
+				terminal.SetFocus(input)
+			}
+			return nil
+		}
+		return event
+	})
 }
 
 func updateHistory() {
@@ -235,4 +252,25 @@ func updateHistory() {
 			"", 0, nil)
 	}
 	history.SetCurrentItem(-1)
+}
+
+func updateUserList() {
+
+	userList, err := rpcClient.GetUserList(context.Background())
+	if err != nil {
+		terminal.Stop()
+	}
+
+	allUser.Clear()
+	for _, userInfo := range userList.Users {
+		allUser.AddItem(
+			fmt.Sprintf(
+				"用户： <%s>: 状态：%t",
+				userInfo.UserName,
+				userInfo.State,
+			),
+			"", 0, nil)
+	}
+
+	allUser.SetCurrentItem(-1)
 }
