@@ -124,12 +124,52 @@ func (s *Server) Stop() {
 
 /**************************************************************************** Function ****************************************************************************/
 
-func (s *Server) register(userName string, srv message.Chatroom_ChatServer) {
-	s.Map.Store(userName, srv)
+func (s *Server) genID() (string, error) {
+	currentTime := time.Now()
+	id, err := ulid.New(ulid.Timestamp(currentTime), s.Entropy)
+	if err != nil {
+		glog.Errorln("ERROR|SendMessage|ulid.New", err)
+		return "", err
+	}
+	return id.String(), nil
+
+}
+
+func (s *Server) register(msg *message.Message, srv message.Chatroom_ChatServer) {
+
+	var userInfo *UserInfo
+	var ok bool
+
+	// 判断用户是否已经注册
+	userInfo, ok = s.allUserMap.GetUserInfo(msg.Sender)
+	if !ok {
+		userInfo = &UserInfo{
+			Cancel:   make(chan bool),
+			UserID:   uuid.New().String(),
+			UserName: msg.Sender,
+			IsOnline: true,
+		}
+		s.allUserMap.AddUser(userInfo)
+	}
+
+	glog.V(3).Infoln(logTag, `register: `, msg.Sender)
+
+	// 存储连接
+	s.Map.Store(msg.Sender, srv)
+
+	// 启用消息处理机制
+	s.runSubscriber(userInfo.Cancel, msg, srv)
 }
 
 func (s *Server) unRegister(userName string) {
+
+	glog.V(3).Infoln(logTag, `unRegister: `, userName)
+
+	// 从连接池中删除
 	s.Map.Delete(userName)
+
+	// 用户设置为离线, 并关闭mq连接
+	s.allUserMap.SetUserState(userName, false)
 }
 
 func (s *Server) getChatServer(userName string) (srv message.Chatroom_ChatServer, ok bool) {
@@ -168,38 +208,23 @@ func (s *Server) broadcast(msg *message.Message) {
 			return true
 		},
 	)
-
 }
 
 func (s *Server) handle(msg *message.Message, chatServer message.Chatroom_ChatServer) {
 
 	// 判断是否已经创建连接
 	if _, ok := s.getChatServer(msg.Sender); !ok {
-		// 判断用户是否已经注册
-		if _, ok := s.allUserMap.GetUserInfo(msg.Sender); !ok {
-			userInfo := UserInfo{
-				UserID:   uuid.New().String(),
-				UserName: msg.Sender,
-				IsOnline: true,
-			}
-			s.allUserMap.AddUser(userInfo)
-		}
 
-		// 注册连接
-		s.register(msg.Sender, chatServer)
-
-		// 启用消息处理机制
-		s.runSubscriber(msg, chatServer)
+		// 注册连接 // TODO 关闭连接
+		s.register(msg, chatServer)
 	}
 
 	// 消息分发
-	currentTime := time.Now()
-	id, err := ulid.New(ulid.Timestamp(currentTime), s.Entropy)
+	uID, err := s.genID()
 	if err != nil {
-		glog.Errorln("ERROR|SendMessage|ulid.New", err)
 		return
 	}
-	msg.Id = id.String()
+	msg.Id = uID
 
 	if msg.SendTo != "" {
 		// 发给消息队列
@@ -212,47 +237,77 @@ func (s *Server) handle(msg *message.Message, chatServer message.Chatroom_ChatSe
 	}
 }
 
-func (s *Server) runSubscriber(msg *message.Message, chatServer message.Chatroom_ChatServer) {
+func (s *Server) runSubscriber(cancel chan bool, msg *message.Message, chatServer message.Chatroom_ChatServer) {
 
 	glog.Infoln(logTag, `runSubscriber: `, msg.Sender, s.mqOpt.URL, s.mqOpt.ExchangeName, msg.Sender)
 
 	//订阅 广播消息
 	fanoutReceiver := NewSubscriber(s.mqOpt.URL, s.mqOpt.ExchangeName, msg.Sender, "")
 	broadcastMsgs := fanoutReceiver.Consume()
-	go func() {
-		for d := range broadcastMsgs {
+	go func(cancel chan bool) {
+		for {
 
-			var msg message.Message
-			if err := json.Unmarshal(d.Body, &msg); err != nil {
-				glog.Errorln(logTag, err)
-				return
-			}
+			select {
+			case <-cancel:
 
-			if err := chatServer.Send(&msg); err != nil {
-				glog.Errorln(logTag, `Err send msg err to `, msg.Sender, err)
+				glog.V(3).Infoln(logTag, fmt.Sprintf("[%s] fanoutReceiver Close", msg.Sender))
+
+				fanoutReceiver.Close()
 				return
+
+			case d, ok := <-broadcastMsgs:
+				if !ok {
+					return
+				}
+
+				var msg message.Message
+				if err := json.Unmarshal(d.Body, &msg); err != nil {
+					glog.Errorln(logTag, err)
+					return
+				}
+
+				if err := chatServer.Send(&msg); err != nil {
+					glog.Errorln(logTag, `Err send msg err to `, msg.Sender, err)
+					return
+				}
 			}
 		}
-	}()
+	}(cancel)
 
 	// 订阅 私人消息
 	directReceiver := NewSubscriber(s.mqOpt.URL, s.mqOpt.ExchangeDirectName, msg.Sender+"_direct", msg.Sender)
 	personalMsgs := directReceiver.Consume()
-	go func() {
-		for d := range personalMsgs {
+	go func(cancel chan bool) {
+		for {
 
-			var msg message.Message
-			if err := json.Unmarshal(d.Body, &msg); err != nil {
-				glog.Errorln(logTag, err)
+			select {
+			case <-cancel:
+
+				glog.V(3).Infoln(logTag, fmt.Sprintf("[%s] directReceiver Close", msg.Sender))
+
+				directReceiver.Close()
 				return
+
+			case d, ok := <-personalMsgs:
+				if !ok {
+					return
+				}
+
+				var msg message.Message
+				if err := json.Unmarshal(d.Body, &msg); err != nil {
+					glog.Errorln(logTag, err)
+					return
+				}
+
+				if err := chatServer.Send(&msg); err != nil {
+					glog.Errorln(logTag, `Err send msg err to `, msg.Sender, err)
+					return
+				}
+
 			}
 
-			if err := chatServer.Send(&msg); err != nil {
-				glog.Errorln(logTag, `Err send msg err to `, msg.Sender, err)
-				return
-			}
 		}
-	}()
+	}(cancel)
 }
 
 func (s *Server) Login(ctx context.Context, loginReq *message.LoginReq) (*message.LoginRes, error) {
@@ -276,11 +331,12 @@ func (s *Server) Login(ctx context.Context, loginReq *message.LoginReq) (*messag
 
 	} else { // 不存在, 则存储到用户表
 		userInfo := UserInfo{
+			Cancel:   make(chan bool),
 			UserID:   uuid.New().String(),
 			UserName: userName,
 			IsOnline: true,
 		}
-		s.allUserMap.AddUser(userInfo)
+		s.allUserMap.AddUser(&userInfo)
 	}
 
 	// 设置user为在线
@@ -323,7 +379,6 @@ func (s *Server) Chat(chatServer message.Chatroom_ChatServer) (err error) {
 			if err == io.EOF {
 				if sender != "" {
 					s.unRegister(sender)
-					s.allUserMap.SetUserState(sender, false)
 				}
 				return nil
 			}
@@ -333,7 +388,6 @@ func (s *Server) Chat(chatServer message.Chatroom_ChatServer) (err error) {
 					if grpcErr.Code() == codes.Canceled {
 						if sender != "" {
 							s.unRegister(sender)
-							s.allUserMap.SetUserState(sender, false)
 						}
 					}
 				}

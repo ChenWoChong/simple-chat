@@ -293,7 +293,7 @@ func updateUserList() {
 		if userInfo.State {
 			stateString = `Online`
 		} else {
-			stateString = `[Offline]`
+			stateString = ` *Offline* `
 		}
 		allUser.AddItem(
 			fmt.Sprintf("%s\t<%s>", userInfo.UserName, stateString),

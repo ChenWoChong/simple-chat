@@ -1,6 +1,8 @@
 package server
 
-import "sync"
+import (
+	"sync"
+)
 
 type UserMap struct {
 	AllUserMap map[string]*UserInfo
@@ -8,6 +10,8 @@ type UserMap struct {
 }
 
 type UserInfo struct {
+	Cancel chan bool
+
 	UserID   string `json:"user_id"`
 	UserName string `json:"user_name"`
 	IsOnline bool   `json:"is_online"`
@@ -31,11 +35,11 @@ func (m *UserMap) GetUserInfo(userName string) (*UserInfo, bool) {
 	return userInfo, true
 }
 
-func (m *UserMap) AddUser(user UserInfo) {
+func (m *UserMap) AddUser(user *UserInfo) {
 	m.Lock()
 	defer m.Unlock()
 
-	m.AllUserMap[user.UserName] = &user
+	m.AllUserMap[user.UserName] = user
 }
 
 func (m *UserMap) Delete(userName string) {
@@ -49,6 +53,11 @@ func (m *UserMap) SetUserState(userName string, isOnline bool) {
 	user, ok := m.GetUserInfo(userName)
 	if !ok {
 		return
+	}
+	if isOnline {
+		user.Cancel = make(chan bool)
+	} else {
+		close(user.Cancel)
 	}
 
 	user.IsOnline = isOnline

@@ -111,6 +111,7 @@ update_server:
 	@docker rmi -f server:latest
 	@make server_docker
 	@docker-compose -f ./config/server-compose.yml up -d server
+	@docker logs -f server
 
 
 update:
