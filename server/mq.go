@@ -12,16 +12,16 @@ var (
 
 // amqp://test:test@127.0.0.1:5672/my_vhost
 
-func InitFanout(url, exchangeName string) *rabbitMQ.RabbitMQ {
+func InitMq(url string, exchangeName string, typeName string) *rabbitMQ.RabbitMQ {
 
-	glog.V(4).Infoln(logTag, fmt.Sprintf("InitFanout: url: %s, exchangeName: %s", url, exchangeName))
+	glog.V(4).Infoln(logTag, fmt.Sprintf("InitMq: url: %s, exchangeName: %s", url, exchangeName))
 
 	serverMQ = rabbitMQ.Connect(url)
-	rabbitMQ.NewExchange(url, exchangeName, rabbitMQ.Fanout)
+	rabbitMQ.NewExchange(url, exchangeName, typeName)
 	return serverMQ
 }
 
-func NewSubscriber(url, exchangeName, name string) *rabbitMQ.RabbitMQ {
+func NewSubscriber(url, exchangeName, name, key string) *rabbitMQ.RabbitMQ {
 
 	glog.V(4).Infoln(logTag, fmt.Sprintf("NewSubscriber: url: %s, exchangeName: %s, name: %s", url, exchangeName, name))
 
@@ -30,9 +30,9 @@ func NewSubscriber(url, exchangeName, name string) *rabbitMQ.RabbitMQ {
 	// 队列绑定到exchange
 	receiveMq := rabbitMQ.New(url, name)
 
-	rabbitMQ.NewExchange(url, exchangeName, rabbitMQ.Fanout)
+	//rabbitMQ.NewExchange(url, exchangeName, rabbitMQ.Fanout)
 
-	receiveMq.Bind(exchangeName, "")
+	receiveMq.Bind(exchangeName, key)
 
 	return receiveMq
 }

@@ -7,6 +7,7 @@ import (
 	"github.com/ChenWoChong/simple-chat/client"
 	"github.com/ChenWoChong/simple-chat/config"
 	"github.com/ChenWoChong/simple-chat/message"
+	"github.com/ChenWoChong/simple-chat/pkg/utils"
 	"github.com/gdamore/tcell"
 	"github.com/golang/glog"
 	"github.com/rivo/tview"
@@ -102,7 +103,7 @@ func main() {
 	glog.Infoln(logTag, `Client start...`)
 
 	setupLogin()
-	setupTerminal()
+	setupChatroom()
 
 	go loopForMessages(ctx, rpcClient)
 
@@ -111,15 +112,17 @@ func main() {
 	}
 }
 
-func setupTerminal() {
+func setupChatroom() {
 
 	messageMap = NewMessageMap()
+
+	glog.Errorln(logTag, `userName: `, userName)
 
 	history = tview.NewList()
 	history.SetSelectedFocusOnly(true).
 		ShowSecondaryText(false).
 		SetBorder(true).
-		SetTitle("CHATROOM")
+		SetTitle(fmt.Sprintf("Chatroom<%s>", userName))
 
 	allUser = tview.NewList().SetSelectedFocusOnly(true)
 	allUser.ShowSecondaryText(false).
@@ -135,12 +138,22 @@ func setupTerminal() {
 			return
 		}
 		text := input.GetText()
+		sendTo, content, err := utils.ParseContent(text)
+		if err != nil {
+			glog.Errorln(logTag, err)
+			return
+		}
+
+		msg := &message.Message{
+			Sender:   userName,
+			Content:  content,
+			SendTo:   sendTo,
+			SendTime: time.Now().Unix(),
+		}
+
+		// 发送到服务器
 		go func() {
-			err := chatClient.Send(&message.Message{
-				Sender:   userName,
-				Content:  text,
-				SendTime: time.Now().Unix(),
-			})
+			err := chatClient.Send(msg)
 			if err != nil {
 				log.Fatal("failed to call message.Send:", err)
 			}
@@ -155,7 +168,7 @@ func setupTerminal() {
 			AddItem(input, 0, 1, true),
 			0, 5, false)
 
-	glog.Infoln(logTag, `setupTerminal Success`)
+	glog.Infoln(logTag, `setupChatroom Success`)
 
 }
 
@@ -214,6 +227,7 @@ func openChatroom() {
 			terminal.Stop()
 		}
 	}
+	history.SetTitle(fmt.Sprintf("Chatroom<%s>", userName))
 
 	// open chatroom
 	terminal.SetRoot(termFlex, true).SetFocus(input)
@@ -242,14 +256,25 @@ func updateHistory() {
 	history.Clear()
 	for _, k := range keys {
 		msg := messageMap.messageM[k]
-		history.AddItem(
-			fmt.Sprintf(
+
+		var text string
+		if msg.SendTo != "" {
+			text = fmt.Sprintf(
+				"%s <%s> SendTo <%s>: %s",
+				time.Unix(0, msg.SendTime).Format("2006-01-02 15:04:05 MST"),
+				msg.Sender,
+				msg.SendTo,
+				msg.Content,
+			)
+		} else {
+			text = fmt.Sprintf(
 				"%s <%s>: %s",
 				time.Unix(0, msg.SendTime).Format("2006-01-02 15:04:05 MST"),
 				msg.Sender,
 				msg.Content,
-			),
-			"", 0, nil)
+			)
+		}
+		history.AddItem(text, "", 0, nil)
 	}
 	history.SetCurrentItem(-1)
 }
@@ -268,7 +293,7 @@ func updateUserList() {
 		if userInfo.State {
 			stateString = `Online`
 		} else {
-			stateString = `Offline`
+			stateString = `[Offline]`
 		}
 		allUser.AddItem(
 			fmt.Sprintf("%s\t<%s>", userInfo.UserName, stateString),

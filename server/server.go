@@ -9,15 +9,17 @@ import (
 	rabbitMQ "github.com/ChenWoChong/simple-chat/pkg/rabbitmq"
 	"github.com/golang/glog"
 	"github.com/google/uuid"
+	"github.com/oklog/ulid/v2"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials"
 	_ "google.golang.org/grpc/encoding/gzip"
 	"google.golang.org/grpc/status"
 	"io"
+	"math/rand"
 	"net"
-	"strconv"
 	"sync"
+	"time"
 )
 
 const (
@@ -41,8 +43,11 @@ type Server struct {
 	sync.Map   // 存储用户连接关系：map[senderID]Chatroom_ChatServer
 	allUserMap *UserMap
 
-	mqOpt    *config.ServerRabbitmq
-	serverMQ *rabbitMQ.RabbitMQ // rabbitMQ
+	Entropy io.Reader
+
+	mqOpt          *config.ServerRabbitmq
+	serverFanoutMQ *rabbitMQ.RabbitMQ // rabbitMQ
+	serverDirectMQ *rabbitMQ.RabbitMQ // rabbitMQ
 }
 
 //NewServer NewServer
@@ -76,7 +81,13 @@ func (s *Server) init() error {
 	s.rpcServer = grpc.NewServer(serverOptList...)
 
 	// 初始化mq
-	s.serverMQ = InitFanout(s.mqOpt.URL, s.mqOpt.ExchangeName)
+	s.serverFanoutMQ = InitMq(s.mqOpt.URL, s.mqOpt.ExchangeName, rabbitMQ.Fanout)
+	s.serverDirectMQ = InitMq(s.mqOpt.URL, s.mqOpt.ExchangeDirectName, rabbitMQ.Direct)
+
+	// setup entropy
+	seed := time.Now().UnixNano()
+	source := rand.NewSource(seed)
+	s.Entropy = &syncReader{reader: rand.New(source)}
 
 	return nil
 }
@@ -178,35 +189,38 @@ func (s *Server) handle(msg *message.Message, chatServer message.Chatroom_ChatSe
 		s.register(msg.Sender, chatServer)
 
 		// 启用消息处理机制
-		s.runSubscriber(msg.Sender, chatServer)
+		s.runSubscriber(msg, chatServer)
 	}
 
 	// 消息分发
-	msgNumber++
-	msg.Id = strconv.FormatInt(msgNumber, 10)
+	currentTime := time.Now()
+	id, err := ulid.New(ulid.Timestamp(currentTime), s.Entropy)
+	if err != nil {
+		glog.Errorln("ERROR|SendMessage|ulid.New", err)
+		return
+	}
+	msg.Id = id.String()
 
-	s.serverMQ.Publish(s.mqOpt.ExchangeName, msg, msg.SendTo)
-	//if msg.SendTo != "" {
-	//	s.single(msg.SendTo, msg)
-	//} else {
-	//	s.broadcast(msg)
-	//}
+	if msg.SendTo != "" {
+		// 发给消息队列
+		s.serverDirectMQ.Publish(s.mqOpt.ExchangeDirectName, msg, msg.SendTo)
+		// 发给自己
+		s.single(msg.Sender, msg)
+	} else {
+		s.serverFanoutMQ.Publish(s.mqOpt.ExchangeName, msg, "")
+		//s.broadcast(msg)
+	}
 }
 
-func (s *Server) runSubscriber(name string, chatServer message.Chatroom_ChatServer) {
+func (s *Server) runSubscriber(msg *message.Message, chatServer message.Chatroom_ChatServer) {
 
-	glog.Infoln(logTag, `runSubscriber: `, name, s.mqOpt.URL, s.mqOpt.ExchangeName, name)
+	glog.Infoln(logTag, `runSubscriber: `, msg.Sender, s.mqOpt.URL, s.mqOpt.ExchangeName, msg.Sender)
 
-	receiver := NewSubscriber(s.mqOpt.URL, s.mqOpt.ExchangeName, name)
-
-	// TODO 错误的处理， 消息传递方式
-	glog.Infoln(logTag, `NewSubscriber: `, name)
-
-	//for {
-	//接收消息时，指定
-	msgs := receiver.Consume()
+	//订阅 广播消息
+	fanoutReceiver := NewSubscriber(s.mqOpt.URL, s.mqOpt.ExchangeName, msg.Sender, "")
+	broadcastMsgs := fanoutReceiver.Consume()
 	go func() {
-		for d := range msgs {
+		for d := range broadcastMsgs {
 
 			var msg message.Message
 			if err := json.Unmarshal(d.Body, &msg); err != nil {
@@ -215,14 +229,30 @@ func (s *Server) runSubscriber(name string, chatServer message.Chatroom_ChatServ
 			}
 
 			if err := chatServer.Send(&msg); err != nil {
-				glog.Errorln(logTag, `Err send msg err to `, name, err)
+				glog.Errorln(logTag, `Err send msg err to `, msg.Sender, err)
 				return
 			}
 		}
 	}()
 
-	glog.Infoln(logTag, `Consume func: `, name)
+	// 订阅 私人消息
+	directReceiver := NewSubscriber(s.mqOpt.URL, s.mqOpt.ExchangeDirectName, msg.Sender+"_direct", msg.Sender)
+	personalMsgs := directReceiver.Consume()
+	go func() {
+		for d := range personalMsgs {
 
+			var msg message.Message
+			if err := json.Unmarshal(d.Body, &msg); err != nil {
+				glog.Errorln(logTag, err)
+				return
+			}
+
+			if err := chatServer.Send(&msg); err != nil {
+				glog.Errorln(logTag, `Err send msg err to `, msg.Sender, err)
+				return
+			}
+		}
+	}()
 }
 
 func (s *Server) Login(ctx context.Context, loginReq *message.LoginReq) (*message.LoginRes, error) {

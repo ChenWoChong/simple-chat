@@ -12,6 +12,7 @@ server_rabbitmq:
   url: "amqp://test:test@rabbitmq:5672/my_vhost"
   vhost: ""
   exchange_name: "serverTest"
+  exchange_direct_name: "serverTest_direct"
 
 # client_rpc服务参数
 client_rpc_opt:

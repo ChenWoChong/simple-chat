@@ -1,6 +1,7 @@
 package server
 
 import (
+	rabbitMQ "github.com/ChenWoChong/simple-chat/pkg/rabbitmq"
 	"log"
 	"strconv"
 	"strings"
@@ -12,7 +13,7 @@ func TestInitFanout(t *testing.T) {
 
 	exchange := "exchangeName"
 
-	ch := InitFanout("amqp://test:test@127.0.0.1:5672/my_vhost", exchange)
+	ch := InitMq("amqp://test:test@127.0.0.1:5672/my_vhost", exchange, rabbitMQ.Fanout)
 
 	i := 0
 	for {
@@ -27,7 +28,7 @@ func TestInitFanout(t *testing.T) {
 func TestNewSubscriber(t *testing.T) {
 	exchange := "exchangeName"
 
-	sub := NewSubscriber("amqp://test:test@127.0.0.1:5672/my_vhost", exchange, "test1")
+	sub := NewSubscriber("amqp://test:test@127.0.0.1:5672/my_vhost", exchange, "test1", "")
 
 	stop := make(chan bool)
 	//4
