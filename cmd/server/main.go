@@ -44,7 +44,7 @@ func main() {
 	config.LoadConfOrDie(*confFile)
 
 	ctx, cancel := context.WithCancel(context.Background())
-	rpcServer := server.NewServer(ctx, &config.Get().ServerRpcOpt)
+	rpcServer := server.NewServer(ctx, &config.Get().ServerRpcOpt, &config.Get().ServerRabbitmq)
 
 	// run
 	glog.Infoln(logTag, `Server start...`)

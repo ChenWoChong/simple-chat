@@ -9,8 +9,9 @@ import (
 var config *Config
 
 type Config struct {
-	ServerRpcOpt ServerRpcOpt `yaml:"server_rpc_opt"`
-	ClientRpcOpt ClientRpcOpt `yaml:"client_rpc_opt"`
+	ServerRpcOpt   ServerRpcOpt   `yaml:"server_rpc_opt"`
+	ServerRabbitmq ServerRabbitmq `yaml:"server_rabbitmq"`
+	ClientRpcOpt   ClientRpcOpt   `yaml:"client_rpc_opt"`
 }
 
 type ServerRpcOpt struct {
@@ -18,6 +19,12 @@ type ServerRpcOpt struct {
 	IsTLS        bool   `json:"is_tls" yaml:"is_tls"`
 	CertFilePath string `json:"cert_file_path" yaml:"cert_file_path"`
 	KeyFilePath  string `json:"key_file_path" yaml:"key_file_path"`
+}
+
+type ServerRabbitmq struct {
+	URL          string `yaml:"url"`
+	Vhost        string `yaml:"vhost"`
+	ExchangeName string `yaml:"exchange_name"`
 }
 
 type ClientRpcOpt struct {

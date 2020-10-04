@@ -257,18 +257,21 @@ func updateHistory() {
 func updateUserList() {
 
 	userList, err := rpcClient.GetUserList(context.Background())
-	if err != nil {
-		terminal.Stop()
+	if err != nil || userList == nil {
+		glog.Errorln(logTag, `updateUserList Err`)
+		return
 	}
 
 	allUser.Clear()
 	for _, userInfo := range userList.Users {
+		var stateString string
+		if userInfo.State {
+			stateString = `Online`
+		} else {
+			stateString = `Offline`
+		}
 		allUser.AddItem(
-			fmt.Sprintf(
-				"用户： <%s>: 状态：%t",
-				userInfo.UserName,
-				userInfo.State,
-			),
+			fmt.Sprintf("%s\t<%s>", userInfo.UserName, stateString),
 			"", 0, nil)
 	}
 

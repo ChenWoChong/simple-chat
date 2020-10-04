@@ -2,9 +2,11 @@ package server
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"github.com/ChenWoChong/simple-chat/config"
 	"github.com/ChenWoChong/simple-chat/message"
+	rabbitMQ "github.com/ChenWoChong/simple-chat/pkg/rabbitmq"
 	"github.com/golang/glog"
 	"github.com/google/uuid"
 	"google.golang.org/grpc"
@@ -38,11 +40,14 @@ type Server struct {
 
 	sync.Map   // 存储用户连接关系：map[senderID]Chatroom_ChatServer
 	allUserMap *UserMap
+
+	mqOpt    *config.ServerRabbitmq
+	serverMQ *rabbitMQ.RabbitMQ // rabbitMQ
 }
 
 //NewServer NewServer
-func NewServer(ctx context.Context, opt *config.ServerRpcOpt) *Server {
-	rpcServer := &Server{ctx: ctx, opt: opt, allUserMap: NewUserMap()}
+func NewServer(ctx context.Context, opt *config.ServerRpcOpt, mqOpt *config.ServerRabbitmq) *Server {
+	rpcServer := &Server{ctx: ctx, opt: opt, mqOpt: mqOpt, allUserMap: NewUserMap()}
 	if err := rpcServer.init(); err != nil {
 		glog.Fatal(logTag, err)
 	}
@@ -69,6 +74,9 @@ func (s *Server) init() error {
 		glog.Infoln(logTag, `创建明文grpc服务端`)
 	}
 	s.rpcServer = grpc.NewServer(serverOptList...)
+
+	// 初始化mq
+	s.serverMQ = InitFanout(s.mqOpt.URL, s.mqOpt.ExchangeName)
 
 	return nil
 }
@@ -154,21 +162,67 @@ func (s *Server) broadcast(msg *message.Message) {
 
 func (s *Server) handle(msg *message.Message, chatServer message.Chatroom_ChatServer) {
 
-	// 判断是否已经注册
+	// 判断是否已经创建连接
 	if _, ok := s.getChatServer(msg.Sender); !ok {
+		// 判断用户是否已经注册
+		if _, ok := s.allUserMap.GetUserInfo(msg.Sender); !ok {
+			userInfo := UserInfo{
+				UserID:   uuid.New().String(),
+				UserName: msg.Sender,
+				IsOnline: true,
+			}
+			s.allUserMap.AddUser(userInfo)
+		}
+
+		// 注册连接
 		s.register(msg.Sender, chatServer)
-		//s.allUserMap.SetUserState(msg.Sender, true)
+
+		// 启用消息处理机制
+		s.runSubscriber(msg.Sender, chatServer)
 	}
 
 	// 消息分发
 	msgNumber++
 	msg.Id = strconv.FormatInt(msgNumber, 10)
 
-	if msg.SendTo != "" {
-		s.single(msg.SendTo, msg)
-	} else {
-		s.broadcast(msg)
-	}
+	s.serverMQ.Publish(s.mqOpt.ExchangeName, msg, msg.SendTo)
+	//if msg.SendTo != "" {
+	//	s.single(msg.SendTo, msg)
+	//} else {
+	//	s.broadcast(msg)
+	//}
+}
+
+func (s *Server) runSubscriber(name string, chatServer message.Chatroom_ChatServer) {
+
+	glog.Infoln(logTag, `runSubscriber: `, name, s.mqOpt.URL, s.mqOpt.ExchangeName, name)
+
+	receiver := NewSubscriber(s.mqOpt.URL, s.mqOpt.ExchangeName, name)
+
+	// TODO 错误的处理， 消息传递方式
+	glog.Infoln(logTag, `NewSubscriber: `, name)
+
+	//for {
+	//接收消息时，指定
+	msgs := receiver.Consume()
+	go func() {
+		for d := range msgs {
+
+			var msg message.Message
+			if err := json.Unmarshal(d.Body, &msg); err != nil {
+				glog.Errorln(logTag, err)
+				return
+			}
+
+			if err := chatServer.Send(&msg); err != nil {
+				glog.Errorln(logTag, `Err send msg err to `, name, err)
+				return
+			}
+		}
+	}()
+
+	glog.Infoln(logTag, `Consume func: `, name)
+
 }
 
 func (s *Server) Login(ctx context.Context, loginReq *message.LoginReq) (*message.LoginRes, error) {

@@ -92,7 +92,7 @@ client_docker: client
 # ------------------------------------------------------------------------------------------------------------------------------
 
 prepare:
-	# TODO
+	docker-compose -f ./config/server-compose.yml up -d
 
 build: client_docker server_docker
 
@@ -106,16 +106,26 @@ run: build
       --name client \
       client:latest
 
+update_server:
+	@docker-compose -f ./config/server-compose.yml stop server
+	@docker rmi -f server:latest
+	@make server_docker
+	@docker-compose -f ./config/server-compose.yml up -d server
+
 
 update:
-	@docker stop server && docker rm server
+	@docker-compose -f ./config/server-compose.yml stop
 	@docker rmi -f server:latest
-
 	@make server_docker
-	@docker run --net ccloud -it -d --restart=always \
-      --name server \
-      -p 12345:12345 \
-      server:latest
+	@docker-compose -f ./config/server-compose.yml up -d
+
+#	@docker stop server && docker rm server
+#	@docker rmi -f server:latest
+#
+#	@docker run --net ccloud -it -d --restart=always \
+#      --name server \
+#      -p 12345:12345 \
+#      server:latest
 	#  -v /etc/localtime:/etc/localtime:ro \
 	#  -v "${HOME}"/data/k8s/config/server/conf:/conf \
 
@@ -136,5 +146,7 @@ clean:
 	@docker rmi -f server:latest
 	@docker stop client && docker rm client
 	@docker rmi -f client:latest
+
+	docker-compose -f ./config/server-compose.yml down
 
 	rm -rf ${DESTDIR}
