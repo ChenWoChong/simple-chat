@@ -22,10 +22,10 @@ type ServerRpcOpt struct {
 }
 
 type ServerRabbitmq struct {
-	URL                string `yaml:"url"`
-	Vhost              string `yaml:"vhost"`
-	ExchangeName       string `yaml:"exchange_name"`
-	ExchangeDirectName string `yaml:"exchange_direct_name"`
+	URL               string `yaml:"url"`
+	Vhost             string `yaml:"vhost"`
+	ExchangeName      string `yaml:"exchange_name"`
+	ExchangeTopicName string `yaml:"exchange_topic_name"`
 }
 
 type ClientRpcOpt struct {

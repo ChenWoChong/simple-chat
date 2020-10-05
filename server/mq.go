@@ -9,6 +9,12 @@ import (
 var (
 	serverMQ *rabbitMQ.RabbitMQ
 )
+/*
+
+publish -->topic ----> consumer
+			|-------> logs
+topic: #.logs
+ */
 
 // amqp://test:test@127.0.0.1:5672/my_vhost
 

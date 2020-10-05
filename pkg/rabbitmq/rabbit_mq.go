@@ -9,6 +9,7 @@ import (
 const (
 	Fanout string = `fanout`
 	Direct string = `direct`
+	Topic  string = `topic`
 	logTag string = `[Rabbitmq]`
 )
 

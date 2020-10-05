@@ -17,10 +17,13 @@ func TestInitFanout(t *testing.T) {
 
 	i := 0
 	for {
-		time.Sleep(1 * time.Minute)
+		time.Sleep(1 )
 		greetings := []string{"Hello world! test after ", strconv.Itoa(i)}
 		ch.Publish(exchange, strings.Join(greetings, " "), "")
 		i = i + 1
+		if i == 10 {
+			break
+		}
 	}
 
 }

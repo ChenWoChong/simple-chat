@@ -25,6 +25,7 @@ import (
 const (
 	logTag  = `[RPC_SERVER]`
 	netWork = `tcp`
+	msgPre  = `msg.`
 )
 
 var (
@@ -47,7 +48,8 @@ type Server struct {
 
 	mqOpt          *config.ServerRabbitmq
 	serverFanoutMQ *rabbitMQ.RabbitMQ // rabbitMQ
-	serverDirectMQ *rabbitMQ.RabbitMQ // rabbitMQ
+	serverTopicMQ  *rabbitMQ.RabbitMQ // rabbitMQ
+	mqCancel       chan bool
 }
 
 //NewServer NewServer
@@ -82,7 +84,10 @@ func (s *Server) init() error {
 
 	// 初始化mq
 	s.serverFanoutMQ = InitMq(s.mqOpt.URL, s.mqOpt.ExchangeName, rabbitMQ.Fanout)
-	s.serverDirectMQ = InitMq(s.mqOpt.URL, s.mqOpt.ExchangeDirectName, rabbitMQ.Direct)
+	s.serverTopicMQ = InitMq(s.mqOpt.URL, s.mqOpt.ExchangeTopicName, rabbitMQ.Topic)
+
+	s.mqCancel = make(chan bool)
+	s.runMsgLogger()
 
 	// setup entropy
 	seed := time.Now().UnixNano()
@@ -120,6 +125,8 @@ func (s *Server) Run() {
 func (s *Server) Stop() {
 	glog.Infoln(logTag, `grpc 服务退出`)
 	s.rpcServer.GracefulStop()
+
+	close(s.mqCancel)
 }
 
 /**************************************************************************** Function ****************************************************************************/
@@ -228,13 +235,83 @@ func (s *Server) handle(msg *message.Message, chatServer message.Chatroom_ChatSe
 
 	if msg.SendTo != "" {
 		// 发给消息队列
-		s.serverDirectMQ.Publish(s.mqOpt.ExchangeDirectName, msg, msg.SendTo)
+		s.serverTopicMQ.Publish(s.mqOpt.ExchangeTopicName, msg, msgPre+msg.SendTo)
 		// 发给自己
 		s.single(msg.Sender, msg)
 	} else {
 		s.serverFanoutMQ.Publish(s.mqOpt.ExchangeName, msg, "")
 		//s.broadcast(msg)
 	}
+}
+
+func (s *Server) runMsgLogger() {
+
+	glog.Infoln(logTag, `runMsgLogger: `, s.mqOpt.ExchangeName)
+
+	//订阅 广播消息
+	fanoutReceiver := NewSubscriber(s.mqOpt.URL, s.mqOpt.ExchangeName, "logger_fanout", "")
+	broadcastMsgs := fanoutReceiver.Consume()
+	go func(cancel chan bool) {
+		for {
+
+			select {
+			case <-cancel:
+
+				glog.V(3).Infoln(logTag, fmt.Sprintf("[%s] fanoutReceiver Close", "logger_fanout"))
+
+				fanoutReceiver.Close()
+				return
+
+			case d, ok := <-broadcastMsgs:
+				if !ok {
+					return
+				}
+
+				var msg message.Message
+				if err := json.Unmarshal(d.Body, &msg); err != nil {
+					glog.Errorln(logTag, err)
+					return
+				}
+
+				// TODO save to db
+				glog.Infoln(logTag, `saveMsgLogger: `, msg)
+
+			}
+		}
+	}(s.mqCancel)
+
+	//订阅 广播消息
+	topicReceiver := NewSubscriber(s.mqOpt.URL, s.mqOpt.ExchangeTopicName, "logger_topic", msgPre+"#")
+	Msgs := topicReceiver.Consume()
+	go func(cancel chan bool) {
+		for {
+
+			select {
+			case <-cancel:
+
+				glog.V(3).Infoln(logTag, fmt.Sprintf("[%s] topicReceiver Close", msgPre+"#"))
+
+				topicReceiver.Close()
+				return
+
+			case d, ok := <-Msgs:
+				if !ok {
+					return
+				}
+
+				var msg message.Message
+				if err := json.Unmarshal(d.Body, &msg); err != nil {
+					glog.Errorln(logTag, err)
+					return
+				}
+
+				// TODO save to db
+				glog.Infoln(logTag, `saveMsgLogger: `, msg)
+			}
+
+		}
+	}(s.mqCancel)
+
 }
 
 func (s *Server) runSubscriber(cancel chan bool, msg *message.Message, chatServer message.Chatroom_ChatServer) {
@@ -275,17 +352,17 @@ func (s *Server) runSubscriber(cancel chan bool, msg *message.Message, chatServe
 	}(cancel)
 
 	// 订阅 私人消息
-	directReceiver := NewSubscriber(s.mqOpt.URL, s.mqOpt.ExchangeDirectName, msg.Sender+"_direct", msg.Sender)
-	personalMsgs := directReceiver.Consume()
+	topicReceiver := NewSubscriber(s.mqOpt.URL, s.mqOpt.ExchangeTopicName, msg.Sender+"_topic", msgPre+msg.Sender)
+	personalMsgs := topicReceiver.Consume()
 	go func(cancel chan bool) {
 		for {
 
 			select {
 			case <-cancel:
 
-				glog.V(3).Infoln(logTag, fmt.Sprintf("[%s] directReceiver Close", msg.Sender))
+				glog.V(3).Infoln(logTag, fmt.Sprintf("[%s] topicReceiver Close", msgPre+msg.Sender))
 
-				directReceiver.Close()
+				topicReceiver.Close()
 				return
 
 			case d, ok := <-personalMsgs:
