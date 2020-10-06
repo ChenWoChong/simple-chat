@@ -95,17 +95,21 @@ func (m *UserMap) Delete(userName string) {
 }
 
 func (m *UserMap) SetUserState(userName string, isOnline bool) {
+
+	glog.V(3).Infoln(logTag, `[SetUserState]`, userName, isOnline)
+
 	user, ok := m.GetUserInfo(userName)
 	if !ok {
 		return
 	}
+
+	user.IsOnline = isOnline
+
 	if isOnline {
 		user.Cancel = make(chan bool)
 	} else {
 		close(user.Cancel)
 	}
-
-	user.IsOnline = isOnline
 
 	//
 	//userDB, err := db.GetUserByName(userName)

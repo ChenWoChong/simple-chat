@@ -527,6 +527,7 @@ func (s *Server) Chat(chatServer message.Chatroom_ChatServer) (err error) {
 
 			if err != nil {
 				if grpcErr, ok := status.FromError(err); ok {
+
 					if grpcErr.Code() == codes.Canceled {
 						if sender != "" {
 							s.unRegister(sender)

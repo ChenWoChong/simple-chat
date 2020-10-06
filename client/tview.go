@@ -63,41 +63,7 @@ func setupChatroom() {
 		SetLabel(">> ").
 		SetLabelColor(tcell.ColorPurple)
 
-	input.SetDoneFunc(func(key tcell.Key) {
-		if input.GetText() == "" {
-			return
-		}
-		text := input.GetText()
-		sendTo, content, err := utils.ParseContent(text)
-		if err != nil {
-			glog.Errorln(logTag, err)
-			return
-		}
-
-		var msgType message.Type
-		if sendTo == "" {
-			msgType = message.Type_ALL
-		} else {
-			msgType = message.Type_SIMPLE
-		}
-
-		msg := &message.Message{
-			Sender:   userName,
-			Content:  content,
-			SendTo:   sendTo,
-			SendTime: time.Now().Unix(),
-			Type:     msgType,
-		}
-
-		// 发送到服务器
-		go func() {
-			err := chatClient.Send(msg)
-			if err != nil {
-				glog.Fatal(logTag, "failed to call message.Send:", err)
-			}
-		}()
-		input.SetText("")
-	})
+	input.SetDoneFunc(inputHandle)
 
 	termFlex = tview.NewFlex().
 		AddItem(allUser, 0, 1, false).
@@ -107,6 +73,48 @@ func setupChatroom() {
 			0, 5, false)
 
 	//glog.Infoln(logTag, `setupChatroom Success`)
+}
+
+func inputHandle(key tcell.Key) {
+	if input.GetText() == "" {
+		return
+	}
+
+	text := input.GetText()
+
+	if text == "exit" || text == "EXIT" {
+		terminal.Stop()
+	}
+
+	sendTo, content, err := utils.ParseContent(text)
+	if err != nil {
+		glog.Errorln(logTag, err)
+		return
+	}
+
+	var msgType message.Type
+	if sendTo == "" {
+		msgType = message.Type_ALL
+	} else {
+		msgType = message.Type_SIMPLE
+	}
+
+	msg := &message.Message{
+		Sender:   userName,
+		Content:  content,
+		SendTo:   sendTo,
+		SendTime: time.Now().Unix(),
+		Type:     msgType,
+	}
+
+	// 发送到服务器
+	go func() {
+		err := chatClient.Send(msg)
+		if err != nil {
+			glog.Fatal(logTag, "failed to call message.Send:", err)
+		}
+	}()
+	input.SetText("")
 }
 
 func queryLatestMessages() {
@@ -179,7 +187,9 @@ func openChatroom() {
 		terminal.Stop()
 	} else {
 		if loginRes.State == false {
-			terminal.Stop()
+			loginForm.SetTitle(fmt.Sprintf(`该用户已经登录! [重新输入：UserName]`))
+			terminal.SetRoot(loginForm, true).SetFocus(loginForm.GetFormItemByLabel("UserName"))
+			return
 		}
 	}
 
