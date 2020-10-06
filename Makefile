@@ -143,6 +143,8 @@ test:
 	# todo
 
 clean:
+	rm -rf ${DESTDIR}
+
 	@docker stop server && docker rm server
 	@docker rmi -f server:latest
 	@docker stop client && docker rm client
@@ -150,4 +152,3 @@ clean:
 
 	docker-compose -f ./config/server-compose.yml down
 
-	rm -rf ${DESTDIR}

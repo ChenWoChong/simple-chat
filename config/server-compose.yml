@@ -27,7 +27,7 @@ services:
     restart: always
     volumes:
       - ./db/data:/var/lib/mysql
-      - ./db/init:/docker-entrypoint-initdb.d
+      - ./init_d:/docker-entrypoint-initdb.d
     environment:
       MYSQL_ROOT_PASSWORD: "1234567890"
     # 网络

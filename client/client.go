@@ -104,3 +104,12 @@ func (c *Client) Login(ctx context.Context, userName string) (*message.LoginRes,
 func (c *Client) GetUserList(ctx context.Context) (*message.UserList, error) {
 	return c.rpcClient.GetUserList(ctx, &message.BaseReq{})
 }
+
+func (c *Client) GetLatestHistoryMsgs(ctx context.Context, msgReq *message.HistoryMsgReq) ([]*message.Message, error) {
+	msgRes, err := c.rpcClient.GetLatestHistoryMsg(ctx, msgReq)
+	if err != nil {
+		return nil, err
+	}
+
+	return msgRes.Messages, nil
+}

@@ -30,6 +30,7 @@ func Close() {
 func AutoMigrate() {
 	db.AutoMigrate(&BroadcastMessage{})
 	db.AutoMigrate(&PrivateMessage{})
+	db.AutoMigrate(&User{})
 }
 
 //RandomID get uuid

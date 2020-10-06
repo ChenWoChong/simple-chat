@@ -36,7 +36,7 @@ type Server struct {
 	opt       *config.ServerRpcOpt // grpc server 配置参数
 	rpcServer *grpc.Server         // grpc server
 
-	message.UnimplementedChatroomServer
+	//message.UnimplementedChatroomServer
 
 	sync.Map   // 存储用户连接关系：map[senderID]Chatroom_ChatServer
 	allUserMap *UserMap
@@ -52,6 +52,13 @@ type Server struct {
 //NewServer NewServer
 func NewServer(ctx context.Context, opt *config.ServerRpcOpt, mqOpt *config.ServerRabbitmq) *Server {
 	rpcServer := &Server{ctx: ctx, opt: opt, mqOpt: mqOpt, allUserMap: NewUserMap()}
+
+	// 加载数据库用户
+	if err := rpcServer.allUserMap.LoadForDB(); err != nil {
+		glog.Fatal(logTag, err)
+	}
+
+	// init rpc server
 	if err := rpcServer.init(); err != nil {
 		glog.Fatal(logTag, err)
 	}
@@ -456,6 +463,45 @@ func (s *Server) GetUserList(ctx context.Context, msg *message.BaseReq) (*messag
 	}
 
 	return &message.UserList{Users: users}, nil
+}
+
+func (s *Server) GetLatestHistoryMsg(ctx context.Context, msg *message.HistoryMsgReq) (*message.HistoryMsgRes, error) {
+
+	broadMsgs, err := db.GetBroadcastMsgListByID(msg.StartID, msg.EndID)
+	if err != nil {
+		return nil, err
+	}
+
+	privateMsgs, err := db.GetUserPrivateMsgList(msg.UserName)
+	if err != nil {
+		return nil, err
+	}
+
+	messages := make([]*message.Message, 0, len(broadMsgs)+len(privateMsgs))
+
+	for _, msg := range broadMsgs {
+		messages = append(messages, &message.Message{
+			Id:       msg.ID,
+			Sender:   msg.Sender,
+			SendTo:   msg.SendTo,
+			Content:  msg.Content,
+			Type:     msg.Type,
+			SendTime: msg.SendTime,
+		})
+	}
+
+	for _, msg := range privateMsgs {
+		messages = append(messages, &message.Message{
+			Id:       msg.ID,
+			Sender:   msg.Sender,
+			SendTo:   msg.SendTo,
+			Content:  msg.Content,
+			Type:     msg.Type,
+			SendTime: msg.SendTime,
+		})
+	}
+
+	return &message.HistoryMsgRes{Messages: messages}, nil
 }
 
 func (s *Server) Chat(chatServer message.Chatroom_ChatServer) (err error) {

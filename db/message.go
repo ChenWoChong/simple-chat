@@ -32,7 +32,8 @@ func (m *BroadcastMessage) Update() error {
 	return db.Updates(m).Error
 }
 
-func GetBroadcastMsgList(startTime, endTime int64) (msgs []BroadcastMessage, err error) {
+// GetBroadcastMsgListByTime
+func GetBroadcastMsgListByTime(startTime, endTime int64) (msgs []BroadcastMessage, err error) {
 
 	msgs = make([]BroadcastMessage, 0)
 
@@ -46,9 +47,24 @@ func GetBroadcastMsgList(startTime, endTime int64) (msgs []BroadcastMessage, err
 	return
 }
 
+// GetBroadcastMsgListByID
+func GetBroadcastMsgListByID(startID, endID string) (msgs []BroadcastMessage, err error) {
+
+	msgs = make([]BroadcastMessage, 0)
+
+	dbObj := db.Model(&BroadcastMessage{})
+	if startID != "" && endID != "" {
+		dbObj = dbObj.Where("id BETWEEN ? AND ?", startID, endID)
+	}
+
+	err = dbObj.Find(&msgs).Error
+
+	return
+}
+
 type PrivateMessage struct {
 	ID       string       `json:"id" gorm:"primaryKey"`
-	Sender   string       `json:"sender"`
+	Sender   string       `json:"sender" gorm:"index"`
 	SendTo   string       `json:"send_to" gorm:"index"`
 	Content  string       `json:"content"`
 	Type     message.Type `json:"type"`
@@ -82,7 +98,7 @@ func GetUserPrivateMsgList(userName string) (msgs []PrivateMessage, err error) {
 	}
 
 	err = db.Model(&PrivateMessage{}).
-		Where("send_to=?", userName).
+		Where("send_to=? or sender=?", userName, userName).
 		Find(&msgs).Error
 
 	return

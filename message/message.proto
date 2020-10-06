@@ -8,6 +8,7 @@ service Chatroom {
     rpc Login (LoginReq) returns (LoginRes);
     rpc GetUserList (BaseReq) returns (UserList);
     rpc Chat (stream Message) returns (stream Message);
+    rpc GetLatestHistoryMsg (HistoryMsgReq) returns (HistoryMsgRes);
 }
 
 enum Type {
@@ -16,6 +17,16 @@ enum Type {
     ALL = 2; // 群发
     EXIT = 3; // 退出
     LOGIN = 4; // 登录
+}
+
+message HistoryMsgReq {
+    string startID = 1;
+    string endID = 2;
+    string UserName = 3;
+}
+
+message HistoryMsgRes {
+    repeated Message messages = 1;
 }
 
 message LoginReq {

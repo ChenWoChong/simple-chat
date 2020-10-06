@@ -44,10 +44,10 @@ func main() {
 	// init
 	config.LoadConfOrDie(*confFile)
 
+	db.Init(config.Get().MysqlOpt) // init db
+
 	ctx, cancel := context.WithCancel(context.Background())
 	rpcServer := server.NewServer(ctx, &config.Get().ServerRpcOpt, &config.Get().ServerRabbitmq)
-
-	db.Init(config.Get().MysqlOpt) // init db
 
 	// run
 	glog.Infoln(logTag, `Server start...`)
