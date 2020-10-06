@@ -3,7 +3,6 @@ package client
 import (
 	"context"
 	"crypto/x509"
-	"github.com/ChenWoChong/simple-chat/config"
 	"github.com/ChenWoChong/simple-chat/message"
 	"github.com/golang/glog"
 	"google.golang.org/grpc"
@@ -20,11 +19,11 @@ const (
 type Client struct {
 	ctx context.Context
 
-	opt       *config.ClientRpcOpt
+	opt       *ClientRpcOpt
 	rpcClient message.ChatroomClient
 }
 
-func NewClient(ctx context.Context, opt *config.ClientRpcOpt) *Client {
+func NewClient(ctx context.Context, opt *ClientRpcOpt) *Client {
 	client := &Client{
 		opt: opt,
 		ctx: ctx,

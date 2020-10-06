@@ -28,7 +28,7 @@ var (
 	chatClient message.Chatroom_ChatClient
 )
 
-func SetupLogin(ctx context.Context, client *Client) *tview.Application {
+func SetupLogin(client *Client) *tview.Application {
 
 	rpcClient = client
 
@@ -71,8 +71,6 @@ func setupChatroom() {
 			AddItem(history, 0, 3, false).
 			AddItem(input, 0, 1, true),
 			0, 5, false)
-
-	//glog.Infoln(logTag, `setupChatroom Success`)
 }
 
 func inputHandle(key tcell.Key) {
@@ -149,9 +147,6 @@ func queryLatestMessages() {
 }
 
 func loopForMessages(ctx context.Context, rpcClient *Client) {
-	//chatClient, err := .Messages(context.Background(), &push.MessagesRequest{
-	//	ChatroomID: chatroomID,
-	//})
 
 	// query for potential missing messages
 	queryLatestMessages()
@@ -196,6 +191,7 @@ func openChatroom() {
 	// 打开 chatroom
 	setupChatroom()
 
+	// 设置聊天室标题
 	history.SetTitle(fmt.Sprintf("Chatroom<%s>", userName))
 
 	// open chatroom
@@ -217,7 +213,6 @@ func openChatroom() {
 
 	go loopForMessages(context.Background(), rpcClient)
 
-	//updateHistory()
 	updateUserList()
 }
 
@@ -231,20 +226,35 @@ func updateHistory() {
 	for _, k := range keys {
 		msg := messageMap.messageM[k]
 
+		// 自己用户名显示me或者I处理
+		var sender, sendTo string
+
+		if msg.Sender == userName {
+			sender = "Myself"
+		} else {
+			sender = msg.Sender
+		}
+
+		if msg.SendTo == userName {
+			sendTo = "ME"
+		} else {
+			sendTo = msg.SendTo
+		}
+
 		var text string
 		if msg.SendTo != "" {
 			text = fmt.Sprintf(
 				"%s <%s> SendTo <%s>: %s",
-				time.Unix(0, msg.SendTime).Format("2006-01-02 15:04:05 MST"),
-				msg.Sender,
-				msg.SendTo,
+				time.Unix(msg.SendTime, 0).Format("2006-01-02 15:04:05 MST"),
+				sender,
+				sendTo,
 				msg.Content,
 			)
 		} else {
 			text = fmt.Sprintf(
 				"%s <%s>: %s",
-				time.Unix(0, msg.SendTime).Format("2006-01-02 15:04:05 MST"),
-				msg.Sender,
+				time.Unix(msg.SendTime, 0).Format("2006-01-02 15:04:05 MST"),
+				sender,
 				msg.Content,
 			)
 		}
@@ -257,7 +267,7 @@ func updateUserList() {
 
 	userList, err := rpcClient.GetUserList(context.Background())
 	if err != nil || userList == nil {
-		glog.Errorln(logTag, `updateUserList Err`)
+		glog.Errorln(logTag, `updateUserList Err`, err)
 		return
 	}
 

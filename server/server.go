@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/ChenWoChong/simple-chat/config"
 	"github.com/ChenWoChong/simple-chat/db"
 	"github.com/ChenWoChong/simple-chat/message"
 	rabbitMQ "github.com/ChenWoChong/simple-chat/pkg/rabbitmq"
@@ -33,8 +32,8 @@ const (
 type Server struct {
 	ctx context.Context // 上下文
 
-	opt       *config.ServerRpcOpt // grpc server 配置参数
-	rpcServer *grpc.Server         // grpc server
+	opt       *ServerRpcOpt // grpc server 配置参数
+	rpcServer *grpc.Server  // grpc server
 
 	//message.UnimplementedChatroomServer
 
@@ -43,14 +42,14 @@ type Server struct {
 
 	Entropy io.Reader
 
-	mqOpt          *config.ServerRabbitmq
+	mqOpt          *ServerRabbitmq
 	serverFanoutMQ *rabbitMQ.RabbitMQ // rabbitMQ
 	serverTopicMQ  *rabbitMQ.RabbitMQ // rabbitMQ
 	mqCancel       chan bool
 }
 
 //NewServer NewServer
-func NewServer(ctx context.Context, opt *config.ServerRpcOpt, mqOpt *config.ServerRabbitmq) *Server {
+func NewServer(ctx context.Context, opt *ServerRpcOpt, mqOpt *ServerRabbitmq) *Server {
 	rpcServer := &Server{ctx: ctx, opt: opt, mqOpt: mqOpt, allUserMap: NewUserMap()}
 
 	// 加载数据库用户

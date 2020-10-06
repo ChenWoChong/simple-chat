@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"flag"
-	"github.com/ChenWoChong/simple-chat/config"
 	"github.com/ChenWoChong/simple-chat/db"
 	"github.com/ChenWoChong/simple-chat/server"
 	"github.com/golang/glog"
@@ -42,12 +41,12 @@ func main() {
 	}
 
 	// init
-	config.LoadConfOrDie(*confFile)
+	server.LoadConfOrDie(*confFile)
 
-	db.Init(config.Get().MysqlOpt) // init db
+	db.Init(server.Get().MysqlOpt) // init db
 
 	ctx, cancel := context.WithCancel(context.Background())
-	rpcServer := server.NewServer(ctx, &config.Get().ServerRpcOpt, &config.Get().ServerRabbitmq)
+	rpcServer := server.NewServer(ctx, &server.Get().ServerRpcOpt, &server.Get().ServerRabbitmq)
 
 	// run
 	glog.Infoln(logTag, `Server start...`)

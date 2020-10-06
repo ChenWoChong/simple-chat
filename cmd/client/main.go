@@ -4,7 +4,6 @@ import (
 	"context"
 	"flag"
 	"github.com/ChenWoChong/simple-chat/client"
-	"github.com/ChenWoChong/simple-chat/config"
 	"github.com/golang/glog"
 	"log"
 	"os"
@@ -40,17 +39,17 @@ func main() {
 	}
 
 	// init
-	config.LoadConfOrDie(*confFile)
+	client.LoadConfOrDie(*confFile)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	rpcClient := client.NewClient(ctx, &config.Get().ClientRpcOpt)
+	rpcClient := client.NewClient(ctx, &client.Get().ClientRpcOpt)
 
 	// run
 	glog.Infoln(logTag, `Client start...`)
 
-	terminal := client.SetupLogin(ctx, rpcClient)
+	terminal := client.SetupLogin(rpcClient)
 
 	if err := terminal.Run(); err != nil {
 		log.Fatal("failed to run app:", err)

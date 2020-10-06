@@ -1,4 +1,4 @@
-package config
+package server
 
 import (
 	"github.com/ChenWoChong/simple-chat/db"
@@ -12,7 +12,6 @@ var config *Config
 type Config struct {
 	ServerRpcOpt   ServerRpcOpt   `yaml:"server_rpc_opt"`
 	ServerRabbitmq ServerRabbitmq `yaml:"server_rabbitmq"`
-	ClientRpcOpt   ClientRpcOpt   `yaml:"client_rpc_opt"`
 	MysqlOpt       db.MsOpt       `yaml:"mysql_opt"`
 }
 
@@ -28,13 +27,6 @@ type ServerRabbitmq struct {
 	Vhost             string `yaml:"vhost"`
 	ExchangeName      string `yaml:"exchange_name"`
 	ExchangeTopicName string `yaml:"exchange_topic_name"`
-}
-
-type ClientRpcOpt struct {
-	ServerAddr         string `yaml:"server_addr"`
-	CaFilePath         string `yaml:"ca_file_path"`
-	ServerHostOverride string `yaml:"server_host_override"`
-	IsTLS              bool   `yaml:"is_tls"`
 }
 
 // LoadConfOrDie Loading config from local file

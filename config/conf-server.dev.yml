@@ -9,17 +9,10 @@ server_rpc_opt:
 
 # server rabbitmq
 server_rabbitmq:
-  url: "amqp://test:test@rabbitmq:5672/my_vhost"
+  url: "amqp://admin:admin@rabbitmq:5672/my_vhost"
   vhost: ""
   exchange_name: "serverTest"
   exchange_topic_name: "serverTest_topic"
-
-# client_rpc服务参数
-client_rpc_opt:
-  server_addr: "127.0.0.1:12345"    #server 连接的rpc服务
-  ca_file_path: ""
-  server_host_override: ""
-  is_tls: false  # 是否开启加密证书
 
 mysql_opt:
   host: "mariadb"

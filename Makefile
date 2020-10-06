@@ -44,18 +44,22 @@ proto: $(PROTO_TARGETS)
 # ------------------------------------------------------------------------------------------------------------------------------
 
 server:
+	go mod tidy
 	@echo "创建 server-${VERSION}目录"
 	@mkdir -p ${DESTDIR}/server-${VERSION}/conf
 	@mkdir -p ${DESTDIR}/server-${VERSION}/bin
 
 	@echo "拷贝配置文件"
-	@cp -rf ${PROJECT_PATH}/config/conf.dev.yml ${DESTDIR}/server-${VERSION}/conf/conf.yml
+	@cp -rf ${PROJECT_PATH}/config/conf-server.dev.yml ${DESTDIR}/server-${VERSION}/conf/conf.yml
 
-	@echo "编译 server"
+	@echo "编译 linux server"
 	@env GOOS=linux GOARCH=amd64 go build -ldflags ${LDFLAGS} -o ${DESTDIR}/server-${VERSION}/bin/server ./cmd/server
 
-	@echo "打包文件 server-${VERSION}.tar.gz"
-	@cd ${DESTDIR}; tar -czf server-${VERSION}.tar.gz server-${VERSION}
+	@echo "导出 本地系统server binary file"
+	@env GOARCH=amd64 go build -ldflags ${LDFLAGS} -o ${DESTDIR}/server/bin/server ./cmd/server
+	@cp -rf ${DESTDIR}/server-${VERSION}/conf/ ${DESTDIR}/server/conf/
+	@#echo "打包文件 server-${VERSION}.tar.gz"
+	@#cd ${DESTDIR}; tar -czf server-${VERSION}.tar.gz server-${VERSION}
 
 server_docker: server
 	@cp -f ${PROJECT_PATH}/cmd/server/.dockerignore ${DESTDIR}/server-${VERSION}/
@@ -73,13 +77,16 @@ client:
 	@mkdir -p ${DESTDIR}/client-${VERSION}/bin
 
 	@echo "拷贝配置文件"
-	@cp -rf ${PROJECT_PATH}/config/conf.dev.yml ${DESTDIR}/client-${VERSION}/conf/conf.yml
+	@cp -rf ${PROJECT_PATH}/config/conf-client.dev.yml ${DESTDIR}/client-${VERSION}/conf/conf.yml
 
-	@echo "编译 client"
+	@echo "编译 linux client"
 	@env GOOS=linux GOARCH=amd64 go build -ldflags ${LDFLAGS} -o ${DESTDIR}/client-${VERSION}/bin/client ./cmd/client
 
-	@echo "打包文件 client-${VERSION}.tar.gz"
-	@cd ${DESTDIR}; tar -czf client-${VERSION}.tar.gz client-${VERSION}
+	@echo "导出 本地系统client binary file"
+	@env GOARCH=amd64 go build -ldflags ${LDFLAGS} -o ${DESTDIR}/client/bin/client ./cmd/client
+	@cp -rf ${DESTDIR}/client-${VERSION}/conf/ ${DESTDIR}/client/conf/
+	@#echo "打包文件 client-${VERSION}.tar.gz"
+	@#cd ${DESTDIR}; tar -czf client-${VERSION}.tar.gz client-${VERSION}
 
 client_docker: client
 	@cp -f ${PROJECT_PATH}/cmd/client/.dockerignore ${DESTDIR}/client-${VERSION}/
@@ -92,19 +99,17 @@ client_docker: client
 # ------------------------------------------------------------------------------------------------------------------------------
 
 prepare:
-	docker-compose -f ./config/server-compose.yml up -d
+	@docker-compose -f ./config/server-compose.yml up -d rabbitmq mariadb
 
-build: client_docker server_docker
+build: server_docker client
 
-run: build
-	@docker run --net ccloud -it -d --restart=always \
-       --name server \
-       -p 12345:12345 \
-       server:latest
+run_client:
+	@${PROJECT_PATH}/build/client/bin/client -conf ${PROJECT_PATH}/build/client/conf/conf.yml -v 4 -logtostderr true
 
-	@docker run --net ccloud -it -d --restart=always \
-      --name client \
-      client:latest
+run:
+	@sleep 30s
+	@docker-compose -f ./config/server-compose.yml up -d server
+	@make run_client
 
 update_server:
 	@docker-compose -f ./config/server-compose.yml stop server
@@ -113,22 +118,11 @@ update_server:
 	@docker-compose -f ./config/server-compose.yml up -d server
 	@docker logs -f server
 
-
 update:
 	@docker-compose -f ./config/server-compose.yml stop
 	@docker rmi -f server:latest
 	@make server_docker
 	@docker-compose -f ./config/server-compose.yml up -d
-
-#	@docker stop server && docker rm server
-#	@docker rmi -f server:latest
-#
-#	@docker run --net ccloud -it -d --restart=always \
-#      --name server \
-#      -p 12345:12345 \
-#      server:latest
-	#  -v /etc/localtime:/etc/localtime:ro \
-	#  -v "${HOME}"/data/k8s/config/server/conf:/conf \
 
 	@docker stop client && docker rm client
 	@docker rmi -f client:latest
@@ -137,18 +131,14 @@ update:
 	@docker run --net ccloud -it -d --restart=always \
 	  --name client \
 	  client:latest
-    #  -p 12345:12345 \
 
 test:
-	# todo
+	@go test -v ./...
 
 clean:
-	rm -rf ${DESTDIR}
+	@rm -rf ${DESTDIR}
 
-	@docker stop server && docker rm server
+	@docker-compose -f ./config/server-compose.yml down
+
 	@docker rmi -f server:latest
-	@docker stop client && docker rm client
-	@docker rmi -f client:latest
-
-	docker-compose -f ./config/server-compose.yml down
 
