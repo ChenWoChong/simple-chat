@@ -32,7 +32,7 @@ dep/protoc/bin/protoc:
 
 dep-install: dep/protoc/bin/protoc
 	go install github.com/golang/protobuf/protoc-gen-go
-	go get ./...
+	go mod tidy
 
 # ------------------------------------------------------------------------------------------------------------------------------
 

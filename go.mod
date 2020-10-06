@@ -11,7 +11,10 @@ require (
 	github.com/rivo/tview v0.0.0-20200915114512-42866ecf6ca6
 	github.com/streadway/amqp v1.0.0
 	github.com/stretchr/testify v1.6.1
+	golang.org/x/net v0.0.0-20200324143707-d3edc9973b7e // indirect
 	google.golang.org/grpc v1.32.0
 	google.golang.org/protobuf v1.23.0
 	gopkg.in/yaml.v2 v2.3.0
+	gorm.io/driver/mysql v1.0.2
+	gorm.io/gorm v1.20.2
 )

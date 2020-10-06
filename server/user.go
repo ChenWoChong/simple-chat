@@ -1,6 +1,7 @@
 package server
 
 import (
+	"sort"
 	"sync"
 )
 
@@ -67,9 +68,16 @@ func (m *UserMap) GetAllUserList() []UserInfo {
 	m.Lock()
 	defer m.Unlock()
 
+	// sort
+	sortKeys := make([]string, 0, len(m.AllUserMap))
+	for k := range m.AllUserMap {
+		sortKeys = append(sortKeys, k)
+	}
+	sort.Strings(sortKeys)
+
 	userList := make([]UserInfo, 0, len(m.AllUserMap))
-	for _, userInfo := range m.AllUserMap {
-		userList = append(userList, *userInfo)
+	for _, userName := range sortKeys {
+		userList = append(userList, *m.AllUserMap[userName])
 	}
 
 	return userList

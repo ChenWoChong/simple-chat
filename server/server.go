@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/ChenWoChong/simple-chat/config"
+	"github.com/ChenWoChong/simple-chat/db"
 	"github.com/ChenWoChong/simple-chat/message"
 	rabbitMQ "github.com/ChenWoChong/simple-chat/pkg/rabbitmq"
 	"github.com/golang/glog"
@@ -26,10 +27,6 @@ const (
 	logTag  = `[RPC_SERVER]`
 	netWork = `tcp`
 	msgPre  = `msg.`
-)
-
-var (
-	msgNumber int64 // TODO 为消息排序，临时使用number， 需考虑并发修改安全问题
 )
 
 //Server real grpc service server
@@ -239,6 +236,7 @@ func (s *Server) handle(msg *message.Message, chatServer message.Chatroom_ChatSe
 		// 发给自己
 		s.single(msg.Sender, msg)
 	} else {
+		// 广播
 		s.serverFanoutMQ.Publish(s.mqOpt.ExchangeName, msg, "")
 		//s.broadcast(msg)
 	}
@@ -248,7 +246,7 @@ func (s *Server) runMsgLogger() {
 
 	glog.Infoln(logTag, `runMsgLogger: `, s.mqOpt.ExchangeName)
 
-	//订阅 广播消息
+	// 广播消息历史记录
 	fanoutReceiver := NewSubscriber(s.mqOpt.URL, s.mqOpt.ExchangeName, "logger_fanout", "")
 	broadcastMsgs := fanoutReceiver.Consume()
 	go func(cancel chan bool) {
@@ -273,9 +271,18 @@ func (s *Server) runMsgLogger() {
 					return
 				}
 
-				// TODO save to db
-				glog.Infoln(logTag, `saveMsgLogger: `, msg)
+				logBroadMsg := db.BroadcastMessage{
+					ID:       msg.Id,
+					Sender:   msg.Sender,
+					SendTo:   msg.SendTo,
+					Content:  msg.Content,
+					Type:     msg.Type,
+					SendTime: msg.SendTime,
+				}
 
+				if err := logBroadMsg.Create(); err != nil {
+					glog.Errorln(logTag, err)
+				}
 			}
 		}
 	}(s.mqCancel)
@@ -305,8 +312,18 @@ func (s *Server) runMsgLogger() {
 					return
 				}
 
-				// TODO save to db
-				glog.Infoln(logTag, `saveMsgLogger: `, msg)
+				logPrivateMsg := db.PrivateMessage{
+					ID:       msg.Id,
+					Sender:   msg.Sender,
+					SendTo:   msg.SendTo,
+					Content:  msg.Content,
+					Type:     msg.Type,
+					SendTime: msg.SendTime,
+				}
+
+				if err := logPrivateMsg.Create(); err != nil {
+					glog.Errorln(logTag, err)
+				}
 			}
 
 		}
@@ -386,6 +403,8 @@ func (s *Server) runSubscriber(cancel chan bool, msg *message.Message, chatServe
 		}
 	}(cancel)
 }
+
+/**************************************************************************** Server ****************************************************************************/
 
 func (s *Server) Login(ctx context.Context, loginReq *message.LoginReq) (*message.LoginRes, error) {
 

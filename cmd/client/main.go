@@ -103,7 +103,7 @@ func main() {
 	glog.Infoln(logTag, `Client start...`)
 
 	setupLogin()
-	setupChatroom()
+	//setupChatroom()
 
 	go loopForMessages(ctx, rpcClient)
 
@@ -113,10 +113,6 @@ func main() {
 }
 
 func setupChatroom() {
-
-	messageMap = NewMessageMap()
-
-	glog.Errorln(logTag, `userName: `, userName)
 
 	history = tview.NewList()
 	history.SetSelectedFocusOnly(true).
@@ -168,8 +164,7 @@ func setupChatroom() {
 			AddItem(input, 0, 1, true),
 			0, 5, false)
 
-	glog.Infoln(logTag, `setupChatroom Success`)
-
+	//glog.Infoln(logTag, `setupChatroom Success`)
 }
 
 func loopForMessages(ctx context.Context, rpcClient *client.Client) {
@@ -203,6 +198,8 @@ func loopForMessages(ctx context.Context, rpcClient *client.Client) {
 
 func setupLogin() {
 
+	messageMap = NewMessageMap()
+
 	loginForm = tview.NewForm().
 		AddInputField("UserName", "", 20, nil, nil).SetLabelColor(tcell.ColorDarkBlue).
 		AddButton("Login", openChatroom).
@@ -227,6 +224,10 @@ func openChatroom() {
 			terminal.Stop()
 		}
 	}
+
+	// 打开 chatroom
+	setupChatroom()
+
 	history.SetTitle(fmt.Sprintf("Chatroom<%s>", userName))
 
 	// open chatroom
@@ -245,6 +246,9 @@ func openChatroom() {
 		}
 		return event
 	})
+
+	updateHistory()
+	updateUserList()
 }
 
 func updateHistory() {

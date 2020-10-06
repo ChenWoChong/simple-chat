@@ -21,3 +21,9 @@ client_rpc_opt:
   server_host_override: ""
   is_tls: false  # 是否开启加密证书
 
+mysql_opt:
+  host: "mariadb"
+  port: 3306
+  user: "test"
+  dbname: "test"
+  passwd: "123456"

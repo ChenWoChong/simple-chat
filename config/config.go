@@ -1,6 +1,7 @@
 package config
 
 import (
+	"github.com/ChenWoChong/simple-chat/db"
 	"github.com/golang/glog"
 	yaml "gopkg.in/yaml.v2"
 	"io/ioutil"
@@ -12,6 +13,7 @@ type Config struct {
 	ServerRpcOpt   ServerRpcOpt   `yaml:"server_rpc_opt"`
 	ServerRabbitmq ServerRabbitmq `yaml:"server_rabbitmq"`
 	ClientRpcOpt   ClientRpcOpt   `yaml:"client_rpc_opt"`
+	MysqlOpt       db.MsOpt       `yaml:"mysql_opt"`
 }
 
 type ServerRpcOpt struct {

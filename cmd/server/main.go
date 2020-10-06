@@ -4,6 +4,7 @@ import (
 	"context"
 	"flag"
 	"github.com/ChenWoChong/simple-chat/config"
+	"github.com/ChenWoChong/simple-chat/db"
 	"github.com/ChenWoChong/simple-chat/server"
 	"github.com/golang/glog"
 	"os"
@@ -45,6 +46,8 @@ func main() {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	rpcServer := server.NewServer(ctx, &config.Get().ServerRpcOpt, &config.Get().ServerRabbitmq)
+
+	db.Init(config.Get().MysqlOpt) // init db
 
 	// run
 	glog.Infoln(logTag, `Server start...`)

@@ -19,6 +19,17 @@ services:
       - RABBITMQ_DEFAULT_VHOST=my_vhost
       - RABBITMQ_DEFAULT_USER=admin #用户名
       - RABBITMQ_DEFAULT_PASS=admin #密码
+  mariadb:
+    image: "mariadb:10.5.5"
+    ports:
+      - "3306:3306"
+    container_name: mariadb
+    restart: always
+    volumes:
+      - ./db/data:/var/lib/mysql
+      - ./db/init:/docker-entrypoint-initdb.d
+    environment:
+      MYSQL_ROOT_PASSWORD: "1234567890"
     # 网络
     #    networks:
     #      - ccloud

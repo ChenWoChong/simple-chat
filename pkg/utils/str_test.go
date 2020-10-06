@@ -37,8 +37,6 @@ func TestParseContent(t *testing.T) {
 	}
 	t.Log(err)
 
-
-
 	name, content, err = ParseContent(`chenwochong test1 test2`)
 	if err != nil {
 		t.Error(err)
