@@ -16,5 +16,6 @@
 
 .idea
 /build
+dep/
 config/data/
 config/db/
