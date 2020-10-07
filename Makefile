@@ -99,7 +99,7 @@ client_docker: client
 # ------------------------------------------------------------------------------------------------------------------------------
 
 prepare:
-	@docker-compose -f ./config/server-compose.yml up -d rabbitmq mariadb
+	@docker-compose -f ${PROJECT_PATH}/config/server-compose.yml up -d rabbitmq mariadb
 
 build: server_docker client
 
@@ -108,24 +108,24 @@ run_client:
 
 run_server:
 	@sleep 30s
-	@docker-compose -f ./config/server-compose.yml up -d server
+	@docker-compose -f ${PROJECT_PATH}/config/server-compose.yml up -d server
 
 run:
 	@make run_server
 	@make run_client
 
 update_server:
-	@docker-compose -f ./config/server-compose.yml stop server
+	@docker-compose -f ${PROJECT_PATH}/config/server-compose.yml stop server
 	@docker rmi -f server:latest
 	@make server_docker
-	@docker-compose -f ./config/server-compose.yml up -d server
+	@docker-compose -f ${PROJECT_PATH}/config/server-compose.yml up -d server
 	@docker logs -f server
 
 update:
-	@docker-compose -f ./config/server-compose.yml stop
+	@docker-compose -f ${PROJECT_PATH}/config/server-compose.yml stop
 	@docker rmi -f server:latest
 	@make server_docker
-	@docker-compose -f ./config/server-compose.yml up -d
+	@docker-compose -f ${PROJECT_PATH}/config/server-compose.yml up -d
 
 	@docker stop client && docker rm client
 	@docker rmi -f client:latest
@@ -141,7 +141,7 @@ test:
 clean:
 	@rm -rf ${DESTDIR}
 
-	@docker-compose -f ./config/server-compose.yml down
+	@docker-compose -f ${PROJECT_PATH}/config/server-compose.yml down
 
 	@docker rmi -f server:latest
 

@@ -24,6 +24,11 @@
 onserver 默认监听端口：`123456` 对外提供服务
 ## Makefile 启动服务
 编译程序,编译客户端，服务端
+
+要求：
+- 服务器必须已经安装docker以及docker-compose，[如未安装，请自行安装]
+- golang 版本必须支持 go mod
+
 ```bash
 $ make build
 ```
