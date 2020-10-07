@@ -44,7 +44,7 @@ proto: $(PROTO_TARGETS)
 # ------------------------------------------------------------------------------------------------------------------------------
 
 server:
-	go mod tidy
+	@go mod tidy
 	@echo "创建 server-${VERSION}目录"
 	@mkdir -p ${DESTDIR}/server-${VERSION}/conf
 	@mkdir -p ${DESTDIR}/server-${VERSION}/bin
@@ -106,9 +106,12 @@ build: server_docker client
 run_client:
 	@${PROJECT_PATH}/build/client/bin/client -conf ${PROJECT_PATH}/build/client/conf/conf.yml -v 4 -logtostderr true
 
-run:
+run_server:
 	@sleep 30s
 	@docker-compose -f ./config/server-compose.yml up -d server
+
+run:
+	@make run_server
 	@make run_client
 
 update_server:

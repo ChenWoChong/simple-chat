@@ -70,7 +70,7 @@ func setupChatroom() {
 		AddItem(tview.NewFlex().SetDirection(tview.FlexRow).
 			AddItem(history, 0, 3, false).
 			AddItem(input, 0, 1, true),
-			0, 5, false)
+			0, 3, false)
 }
 
 func inputHandle(key tcell.Key) {
