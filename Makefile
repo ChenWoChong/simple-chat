@@ -140,6 +140,7 @@ test:
 
 clean:
 	@rm -rf ${DESTDIR}
+	@rm -rf ${PROJECT_PATH}/config/data/ ${PROJECT_PATH}/config/db/
 
 	@docker-compose -f ${PROJECT_PATH}/config/server-compose.yml down
 
