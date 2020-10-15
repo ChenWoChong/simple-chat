@@ -1,0 +1,15 @@
+sudo: false
+language: go
+
+os:
+  - linux
+  - osx
+
+env:
+  global:
+    - GO111MODULE=on
+
+install:
+  - go mod tidy
+script:
+  - go test ./...
