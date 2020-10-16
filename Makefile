@@ -110,9 +110,10 @@ run_server:
 	@sleep 30s
 	@docker-compose -f ${PROJECT_PATH}/config/server-compose.yml up -d server
 
-run:
-	@make run_server
-	@make run_client
+run_docker:
+	@docker-compose -f ${PROJECT_PATH}/config/server-compose.yml up -d $(server)
+
+run: run_server run_client
 
 update_server:
 	@docker-compose -f ${PROJECT_PATH}/config/server-compose.yml stop server

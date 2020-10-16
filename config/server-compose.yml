@@ -1,6 +1,14 @@
 version: "3.3"
 services:
   # 服务名称
+  redis:
+    image: redis:latest
+    container_name: redis
+    command: redis-server --requirepass 123456
+    ports:
+    - "16379:16379"
+    volumes:
+    - $HOME/Other/redis:/data
   rabbitmq:
     # 镜像
     image: rabbitmq:management
